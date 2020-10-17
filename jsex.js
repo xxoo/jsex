@@ -422,6 +422,8 @@
 				}
 				c.sort(); //this line can decrease performance but is needed by isEqual
 				s = 'new ' + t + '([' + c.join(',') + '])';
+			} else if (typeof d.toJsex === 'function') {
+				s = toJsex(d.toJsex());
 			} else {
 				let c = [],
 					n = Object.getOwnPropertyNames(d).sort(); //sort is needed by isEqual

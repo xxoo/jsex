@@ -30,11 +30,12 @@ console.log(s);
 ```
 
 ## How to deserialize?
-Normally you can just `eval` the string to restore data. but for security reason you might need to use `String.prototype.parseJsex()`.
+Basically you can just `eval` the string to restore data. but for security reason you might need to use `String.prototype.parseJsex()`.
 ```javascript
 //to undertake the above code
-console.log('eval result:', eval(`(${s})`));
-//parseJsex returns undefined if failed to parse the string. or it will return an object with a length key and a value key.
+console.log('eval result:', eval('(' + s + ')'));
+//parseJsex returns undefined if failed to parse the string.
+//or it will return an object with a length key and a value key.
 console.log('parseJsex result:', s.parseJsex().value);
 ```
 
@@ -45,7 +46,7 @@ Yes, but only for compact JSON strings. Any unnecessary blank space or commants 
 Yes, there are a few differences.
 * When serializing strings, jsex doesn't do unnecessary escapes, most unicode characters will be as is. ASCII control characters will be escaped as `\x00` alike.
 * `0` and `-0` are different in jsex
-* Objects don't have prototype when deserializing with `parseJsex`. Which means it is safe to use any key name. except `__proto__`.
+* Objects returned from `parseJsex` have a `null` prototype. Which means it is safe to use any key name. except `__proto__`.
 
 ## When should I use jsex?
-When you are transfering data between javascript projects, and JSON is not good enough for you. It is recommend to try out jsex.
+When your javascript project needs to store data, or share data between other javascript projects, and JSON is not good enough for you. Then it is recommend to try out jsex.
