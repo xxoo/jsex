@@ -340,16 +340,12 @@
 		}
 	};
 	//serialize js data to jsex
-	globalThis.toJsex = d => {
+	globalThis.toJsex = (d, sorting) => {
 		let s;
 		if (d == null) {
 			s = String(d);
 		} else {
 			let t = dataType(d);
-			if (pmtobjs.indexOf(t) >= 0) {
-				d = d.valueOf();
-				t = t.toLowerCase();
-			}
 			if (t === 'string') {
 				s = strEncode(d);
 			} else if (t === 'boolean') {
@@ -367,7 +363,7 @@
 					s = Symbol.keyFor(d);
 					if (typeof s === 'string') {
 						s = 'Symbol.for(' + strEncode(s) + ')';
-					} else if (Symbol.prototype.hasOwnProperty('description')) {
+					} else if ('description' in Symbol.prototype) {
 						s = 'Symbol(';
 						if (d.description) {
 							s += strEncode(d.description);
@@ -412,27 +408,36 @@
 					if (i > 0) {
 						s += ',';
 					}
-					s += toJsex(d[i]);
+					s += toJsex(d[i], sorting);
 				}
 				s += ']';
 			} else if (['Map', 'Set'].indexOf(t) >= 0) {
 				let c = [];
 				for (let n of d) {
-					c.push(toJsex(n));
+					c.push(toJsex(n, sorting));
 				}
-				c.sort(); //this line can decrease performance but is needed by isEqual
+				if (sorting) {
+					c.sort();
+				}
 				s = 'new ' + t + '([' + c.join(',') + '])';
-			} else if (typeof d.toJsex === 'function') {
-				s = toJsex(d.toJsex());
+			} else if (typeof d.valueOf === 'function' && d !== (t = d.valueOf())) {
+				s = toJsex(t, sorting);
 			} else {
 				let c = [],
-					n = Object.getOwnPropertyNames(d).sort(); //sort is needed by isEqual
+					n = Object.getOwnPropertyNames(d);
+				if (sorting) {
+					n.sort();
+				}
 				for (let i = 0; i < n.length; i++) {
 					if (n[i] !== '__proto__') {
-						c.push(strEncode(n[i]) + ':' + toJsex(d[n[i]]));
+						c.push(strEncode(n[i]) + ':' + toJsex(d[n[i]], sorting));
 					}
 				}
-				s = '{' + c.concat(Object.getOwnPropertySymbols(d).map(v => '[' + toJsex(v) + ']:' + toJsex(d[v])).sort()).join(',') + '}';
+				n = Object.getOwnPropertySymbols(d).map(v => '[' + toJsex(v, sorting) + ']:' + toJsex(d[v], sorting));
+				if (sorting) {
+					n.sort();
+				}
+				s = '{' + c.concat(n).join(',') + '}';
 			}
 		}
 		return s;
@@ -474,11 +479,11 @@
 						let a1 = [],
 							a2 = [];
 						for (let n of o1) {
-							a1.push(toJsex(n));
+							a1.push(toJsex(n, true));
 						}
 						a1.sort();
 						for (let n of o2) {
-							a2.push(toJsex(n));
+							a2.push(toJsex(n, true));
 						}
 						a2.sort();
 						return isEqual(a1, a2);
@@ -495,7 +500,7 @@
 					let m = Object.getOwnPropertySymbols(o2);
 					n = Object.getOwnPropertySymbols(o1);
 					if (m.length === n.length) {
-						return isEqual(m.map(v => toJsex([v, o2[v]])).sort(), n.map(v => toJsex([v, o1[v]])).sort());
+						return isEqual(m.map(v => toJsex([v, o2[v]], true)).sort(), n.map(v => toJsex([v, o1[v]], true)).sort());
 					}
 				}
 			}
