@@ -442,7 +442,7 @@
 		}
 		return s;
 	};
-	//isEqual returns true if toJsex(o1) equals toJsex(o2)
+	//isEqual returns true if toJsex(o1, true) equals toJsex(o2, true)
 	//note: -0 does not equal to 0
 	globalThis.isEqual = (o1, o2) => {
 		let t1 = dataType(o1),
