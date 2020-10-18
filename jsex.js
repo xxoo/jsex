@@ -1,7 +1,6 @@
 (() => {
 	'use strict';
-	const pmtobjs = ['String', 'Number', 'Boolean', 'Symbol', 'BigInt'],
-		arrays = ['Array', 'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array'],
+	const arrays = ['Array', 'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array'],
 		wksbls = ['iterator', 'asyncIterator', 'match', 'replace', 'search', 'split', 'hasInstance', 'isConcatSpreadable', 'unscopables', 'species', 'toPrimitive', 'toStringTag'],
 		samesetormap = (o1, o2) => {
 			if (o2.get) {
@@ -442,69 +441,72 @@
 		}
 		return s;
 	};
-	//isEqual returns true if toJsex(o1, true) equals toJsex(o2, true)
+	//isEqual returns true if toJsex(o1, true) === toJsex(o2, true)
 	//note: -0 does not equal to 0
 	globalThis.isEqual = (o1, o2) => {
-		let t1 = dataType(o1),
-			t2 = dataType(o2);
-		if (pmtobjs.indexOf(t1) >= 0) {
-			o1 = o1.valueOf();
-			t1 = t1.toLowerCase();
-		}
-		if (pmtobjs.indexOf(t2) >= 0) {
-			o2 = o2.valueOf();
-			t2 = t2.toLowerCase();
-		}
 		if (Object.is(o1, o2)) {
 			return true;
-		} else if (arrays.indexOf(t1) >= 0) {
-			if (arrays.indexOf(t2) >= 0 && o1.length === o2.length) {
-				for (let i = 0; i < o1.length; i++) {
-					if (!isEqual(o1[i], o2[i])) {
-						return;
-					}
-				}
-				return true;
-			}
-		} else if (t1 === t2) {
-			if (t1 === 'Date') {
-				return o1.getTime() === o2.getTime();
-			} else if (['RegExp', 'Error', 'symbol'].indexOf(t1) >= 0) {
-				return toJsex(o1) === toJsex(o2);
-			} else if (['Set', 'Map'].indexOf(t1) >= 0) {
-				if (o1.size === o2.size) {
-					if (samesetormap(o1, o2)) {
-						return true;
+		} else {
+			const types = ['undefined', 'null', 'boolean', 'string', 'number', 'bigint', 'symbol', 'Date', 'RegExp', 'Error', 'Map', 'Set'],
+				d1 = dataType(o1),
+				d2 = dataType(o2),
+				t1 = types.indexOf(d1),
+				t2 = types.indexOf(d2);
+			let v;
+			if (t1 < 0 && typeof o1.valueOf === 'function' && o1 !== (v = o1.valueOf())) {
+				return isEqual(v, o2);
+			} else if (t2 < 0 && typeof o2.valueOf === 'function' && o2 !== (v = o2.valueOf())) {
+				return isEqual(o1, v);
+			} else if (t1 > 5) {
+				if (t1 === t2) {
+					if (t1 > 9) {
+						if (o1.size === o2.size) {
+							if (samesetormap(o1, o2)) {
+								return true;
+							} else {
+								v = [];
+								for (let n of o1) {
+									v.push(toJsex(n, true));
+								}
+								let m = [];
+								for (let n of o2) {
+									m.push(toJsex(n, true));
+								}
+								return isEqual(v.sort(), m.sort());
+							}
+						}
 					} else {
-						let a1 = [],
-							a2 = [];
-						for (let n of o1) {
-							a1.push(toJsex(n, true));
-						}
-						a1.sort();
-						for (let n of o2) {
-							a2.push(toJsex(n, true));
-						}
-						a2.sort();
-						return isEqual(a1, a2);
+						return toJsex(o1) === toJsex(o2);
 					}
 				}
-			} else if (t1 === 'Object') {
-				let n = Object.getOwnPropertyNames(o1);
-				if (n.length === Object.getOwnPropertyNames(o2).length) {
-					for (let i = 0; i < n.length; i++) {
-						if (!Object.prototype.hasOwnProperty.call(o2, n[i]) || !isEqual(o1[n[i]], o2[n[i]])) {
-							return;
+			} else if (t1 < 0) {
+				if (arrays.indexOf(d1) >= 0) {
+					if (arrays.indexOf(d2) >= 0 && o1.length === o2.length) {
+						for (let i = 0; i < o1.length; i++) {
+							if (!isEqual(o1[i], o2[i])) {
+								return false;
+							}
 						}
+						return true;
 					}
-					let m = Object.getOwnPropertySymbols(o2);
-					n = Object.getOwnPropertySymbols(o1);
-					if (m.length === n.length) {
-						return isEqual(m.map(v => toJsex([v, o2[v]], true)).sort(), n.map(v => toJsex([v, o1[v]], true)).sort());
+				} else {
+					v = Object.getOwnPropertyNames(o1);
+					if (v.length === Object.getOwnPropertyNames(o2).length) {
+						for (let i = 0; i < v.length; i++) {
+							if (!Object.prototype.hasOwnProperty.call(o2, v[i]) || !isEqual(o1[v[i]], o2[v[i]])) {
+								return false;
+							}
+						}
+						let m = Object.getOwnPropertySymbols(o2);
+						v = Object.getOwnPropertySymbols(o1);
+						if (m.length === v.length) {
+							return isEqual(m.map(n => toJsex([n, o2[n]], true)).sort(), v.map(n => toJsex([n, o1[n]], true)).sort());
+						}
 					}
 				}
 			}
 		}
+		return false;
 	};
 
 	globalThis.clearProto = o => {
