@@ -2,22 +2,6 @@
 	'use strict';
 	const arrays = ['Array', 'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array'],
 		wksbls = ['iterator', 'asyncIterator', 'match', 'replace', 'search', 'split', 'hasInstance', 'isConcatSpreadable', 'unscopables', 'species', 'toPrimitive', 'toStringTag'],
-		samesetormap = (o1, o2) => {
-			if (o2.get) {
-				for (let n of o1) {
-					if (!o2.has(n[0]) || !o2.get(n[0]) !== n[1]) {
-						return;
-					}
-				}
-			} else {
-				for (let n of o1) {
-					if (!o2.has(n)) {
-						return;
-					}
-				}
-			}
-			return true;
-		},
 		strEncode = str => {
 			return '"' + str.replace(/[\\"\x00-\x08\x0a-\x1f\x7f\xff\u061c\u200e\u200f\u2028-\u202e\u2066-\u2069]/g, a => {
 				if (a === '\\') {
@@ -35,10 +19,13 @@
 				} else if (a === '\r') {
 					return '\\r';
 				} else {
-					let c = a.charCodeAt(0);
-					return (c < 16 ? '\\x0' : c < 256 ? '\\x' : '\\u') + c.toString(16);
+					return escapeChar(a);
 				}
 			}) + '"';
+		},
+		escapeChar = a => {
+			let c = a.charCodeAt(0);
+			return (c < 16 ? '\\x0' : c < 256 ? '\\x' : c < 4096 ? '\\u0' : '\\u') + c.toString(16);
 		};
 
 	if (typeof globalThis === 'undefined') {
@@ -390,8 +377,7 @@
 					} else if (a === '\r') {
 						return '\\r';
 					} else {
-						let c = a.charCodeAt(0);
-						return (c < 16 ? '\\x0' : c < 256 ? '\\x' : '\\u') + c.toString(16);
+						return escapeChar(a);
 					}
 				}).replace(/^(?=\/)/, '\\').replace(/[^\\](\\\\)*(?=\/)/g, '$&\\') : '(?:)') + '/' + d.flags;
 			} else if (t === 'Error') {
@@ -461,19 +447,15 @@
 				if (t1 === t2) {
 					if (t1 > 9) {
 						if (o1.size === o2.size) {
-							if (samesetormap(o1, o2)) {
-								return true;
-							} else {
-								v = [];
-								for (let n of o1) {
-									v.push(toJsex(n, true));
-								}
-								let m = [];
-								for (let n of o2) {
-									m.push(toJsex(n, true));
-								}
-								return isEqual(v.sort(), m.sort());
+							v = [];
+							for (let n of o1) {
+								v.push(toJsex(n, true));
 							}
+							let m = [];
+							for (let n of o2) {
+								m.push(toJsex(n, true));
+							}
+							return isEqual(v.sort(), m.sort());
 						}
 					} else {
 						return toJsex(o1) === toJsex(o2);
