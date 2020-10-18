@@ -1,7 +1,6 @@
 (() => {
 	'use strict';
 	const arrays = ['Array', 'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array'],
-		wksbls = ['iterator', 'asyncIterator', 'match', 'matchAll', 'replace', 'search', 'split', 'hasInstance', 'isConcatSpreadable', 'unscopables', 'species', 'toPrimitive', 'toStringTag'],
 		strEncode = str => {
 			return '"' + str.replace(/[\\"\x00-\x08\x0a-\x1f\x7f\xff\u061c\u200e\u200f\u2028-\u202e\u2066-\u2069]/g, a => {
 				if (a === '\\') {
@@ -109,17 +108,11 @@
 						};
 					}
 				}
-			} else if (this.charAt(l) === '.') {
-				l += 1;
-				for (let i = 0; i < wksbls.length; i++) {
-					if (this.substr(l, wksbls[i].length) === wksbls[i]) {
-						r = {
-							value: Symbol[wksbls[i]],
-							length: l + wksbls[i].length
-						};
-						break;
-					}
-				}
+			} else if ((m = this.substr(l).match(/^\.(\w+)/)) && typeof Symbol[m[1]] === 'symbol') {
+				r = {
+					value: Symbol[m[1]],
+					length: l + m[0].length
+				};
 			}
 		} else if (this.substr(0, l = 8) === 'new Set(') {
 			m = this.substr(l).parseJsex();
@@ -339,27 +332,18 @@
 			} else if (t === 'number') {
 				s = Object.is(d, -0) ? '-0' : d.toString();
 			} else if (t === 'symbol') {
-				for (let i = 0; i < wksbls.length; i++) {
-					if (d === Symbol[wksbls[i]]) {
-						s = 'Symbol.' + wksbls[i];
-						break;
-					}
-				}
-				if (!s) {
-					s = Symbol.keyFor(d);
-					if (typeof s === 'string') {
-						s = 'Symbol.for(' + strEncode(s) + ')';
-					} else if ('description' in Symbol.prototype) {
-						s = 'Symbol(';
-						if (d.description) {
-							s += strEncode(d.description);
-						}
-						s += ')';
+				s = Symbol.keyFor(d);
+				if (typeof s === 'string') {
+					s = 'Symbol.for(' + strEncode(s) + ')';
+				} else {
+					if ('description' in Symbol.prototype) {
+						s = d.description;
 					} else {
 						s = d.toString();
-						if (s.length > 8) {
-							s = 'Symbol(' + strEncode(s.substr(7, s.length - 8)) + ')';
-						}
+						s = s.length > 8 ? s.substr(7, s.length - 8) : '';
+					}
+					if (!(t = s.match(/^Symbol\.(\w+)$/)) || Symbol[t[1]] !== d) {
+						s = s ? 'Symbol(' + strEncode(s) + ')' : 'Symbol()';
 					}
 				}
 			} else if (t === 'bigint') {
