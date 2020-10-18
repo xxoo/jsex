@@ -410,11 +410,12 @@
 			} else {
 				let c = [],
 					n = Object.getOwnPropertyNames(d);
+				t = typeof d !== 'function';
 				if (sorting) {
 					n.sort();
 				}
 				for (let i = 0; i < n.length; i++) {
-					if (n[i] !== '__proto__') {
+					if (n[i] !== '__proto__' && (t || n[i] !== 'prototype')) {
 						c.push(strEncode(n[i]) + ':' + toJsex(d[n[i]], sorting));
 					}
 				}
