@@ -53,4 +53,4 @@ Yes, there are a few differences.
 * By default ASCII control characters in string will be escaped as `\xff` alike(rather then `\uffff`). You can change this behavior by the 3rd param in `toJsex`.
 
 ## When should I use jsex?
-When you are using javascript and JSON is not good enough for you.
+When you are using javascript, and JSON is not good enough for you.
