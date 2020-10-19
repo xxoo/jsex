@@ -1,7 +1,6 @@
 ## What is jsex?
 jsex is an extended JSON format that supports most native javascript data types.
 
----
 
 ## How many data types does jsex support?
 As many as possible, including:
@@ -16,7 +15,6 @@ As many as possible, including:
 * Typed Arrays (will be serialized as normal array)
 * Infinity, NaN and undefined
 
----
 
 ## How to serialize data?
 By calling `toJsex(data, sorting, unicode)`. `sorting` and `unicode` default to `false`, here is an example:
@@ -34,7 +32,6 @@ console.log(s);
 //{"someRegex":/\wjsex\w/gi,"someSet":new Set([1,1n]),"normalKey":"valueForNormalKey",[Symbol.for("symbolKey")]:"valueForSymbolKey"}
 ```
 
----
 
 ## How to deserialize?
 Basically you can just `eval` the string to restore data. But for security reasons you might need to use `String.prototype.parseJsex()`. This method returns undefined if parsing failed, or an object with a `length` key(characters parsed in this string) and a `value` key(the result).
@@ -47,12 +44,10 @@ console.log('parseJsex result:', v2);
 console.log(isEqual(v1, v2)); //true
 ```
 
----
 
 ## Does `parseJsex` support JSON string?
 Yes, but only for compact JSON strings. Any unnecessary blank space or commants may cause failing.
 
----
 
 ## Is there any other difference between JSON and jsex?
 Yes, there are a few more differences.
@@ -62,7 +57,6 @@ Yes, there are a few more differences.
 * You can choose whether or not sorting the keys with the 2nd argument of `toJsex`. In some particular cases it makes sance. eg: Comparing data structure.
 * By default ASCII control characters in string are escaped as `\x00` alike(rather then `\u0000`). You can change this behavior with the 3rd argument of `toJsex`.
 
----
 
 ## When should I use jsex?
 When you are using javascript, and JSON is not good enough for you.
