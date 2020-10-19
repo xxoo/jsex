@@ -41,7 +41,7 @@ Basically you can just `eval` the string to restore data. But for security reaso
 ```javascript
 //following the above code
 let v1 = eval('(' + s + ')'),
-	v2 = s.parseJsex().value;
+  v2 = s.parseJsex().value;
 console.log('eval result:', v1);
 console.log('parseJsex result:', v2);
 console.log(isEqual(v1, v2)); //true
