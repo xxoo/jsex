@@ -16,7 +16,7 @@ As many as possible, including:
 
 ## How to serialize data?
 By calling `toJsex(data, sorting, unicode)`.
-`sorting` and `unicode` defaults to `false`, here is an example:
+`sorting` and `unicode` default to `false`, here is an example:
 ```javascript
 import './jsex.js';
 let data = {};
