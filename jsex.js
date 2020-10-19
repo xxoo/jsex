@@ -173,12 +173,11 @@
 				};
 			}
 		} else if (this.charAt(0) === '{') {
-			let mf,
+			let mf, mm,
 				ml = true,
 				me = true,
 				mq = false,
-				mn = false,
-				mm = '';
+				mn = false;
 			m = Object.create(null);
 			l = 1;
 			while (!(mn || (me && this.charAt(l) === '}'))) {
@@ -257,14 +256,14 @@
 					}),
 					length: m[0].length
 				};
-			} catch (e) {}
+			} catch (e) { }
 		} else if (m = this.match(/^\/((?:\\\\)+|(?:[^\\\/]|[^\/][^\x00-\x08\x0a-\x1f\x7f\xff\u061c\u200e\u200f\u2028-\u202e\u2066-\u2069]*?[^\\\x00-\x08\x0a-\x1f\x7f\xff\u061c\u200e\u200f\u2028-\u202e\u2066-\u2069])(?:\\\\)*)\/(g?i?m?s?u?y?)/)) {
 			try {
 				r = {
 					value: RegExp(m[1], m[2]),
 					length: m[0].length
 				};
-			} catch (e) {}
+			} catch (e) { }
 		} else if (m = this.match(/^(Range|Reference|Syntax|Type|URI|Eval)?Error\(/)) {
 			l = m[0].length;
 			m = {
