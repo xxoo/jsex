@@ -377,20 +377,20 @@
 					if (i > 0) {
 						s += ',';
 					}
-					s += toJsex(d[i], sorting);
+					s += toJsex(d[i], sorting, unicode);
 				}
 				s += ']';
 			} else if (['Map', 'Set'].indexOf(t) >= 0) {
 				let c = [];
 				for (let n of d) {
-					c.push(toJsex(n, sorting));
+					c.push(toJsex(n, sorting, unicode));
 				}
 				if (sorting) {
 					c.sort();
 				}
 				s = 'new ' + t + '([' + c.join(',') + '])';
 			} else if (typeof d.valueOf === 'function' && d !== (t = d.valueOf())) {
-				s = toJsex(t, sorting);
+				s = toJsex(t, sorting, unicode);
 			} else {
 				let c = [],
 					n = Object.getOwnPropertyNames(d);
@@ -400,10 +400,10 @@
 				}
 				for (let i = 0; i < n.length; i++) {
 					if (n[i] !== '__proto__' && (t || n[i] !== 'prototype')) {
-						c.push(strEncode(n[i]) + ':' + toJsex(d[n[i]], sorting), unicode);
+						c.push(strEncode(n[i], unicode) + ':' + toJsex(d[n[i]], sorting, unicode));
 					}
 				}
-				n = Object.getOwnPropertySymbols(d).map(v => '[' + toJsex(v, sorting) + ']:' + toJsex(d[v], sorting));
+				n = Object.getOwnPropertySymbols(d).map(v => '[' + toJsex(v, sorting, unicode) + ']:' + toJsex(d[v], sorting, unicode));
 				if (sorting) {
 					n.sort();
 				}
