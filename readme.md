@@ -1,8 +1,9 @@
 ## What is jsex?
-jsex is an extended JSON data format that supports most native javascript data types.
+jsex is an extended JSON format that supports most native javascript data types.
 
 ## How many data types does jsex support?
-* All types that supported in JSON
+As many as possible, including:
+* All types supported in JSON
 * Date
 * RegExp
 * Bigint
@@ -14,7 +15,8 @@ jsex is an extended JSON data format that supports most native javascript data t
 * Infinity, NaN and undefined
 
 ## How to serialize data?
-By calling `toJsex(data)`.
+By calling `toJsex(data, sorting, unicode)`.
+`sorting` and `unicode` defaults to `false`, here is en example:
 ```javascript
 import './jsex.js';
 let data = {};
@@ -30,7 +32,7 @@ console.log(s);
 ```
 
 ## How to deserialize?
-Basically you can just `eval` the string to restore data. but for security reason you might need to use `String.prototype.parseJsex()`.
+Basically you can just `eval` the string to restore data. But for security reasons you might need to use `String.prototype.parseJsex()`.
 ```javascript
 //to undertake the above code
 console.log('eval result:', eval('(' + s + ')'));
@@ -44,11 +46,11 @@ Yes, but only for compact JSON strings. Any unnecessary blank space or commants 
 
 ## Is there any other difference between JSON and jsex?
 Yes, there are a few differences.
-* `toJsex` use `valueOf` rather then `toJSON` to serialize custom data types
-* When serializing strings, jsex doesn't do unnecessary escapes, most unicode characters will be as is. ASCII control characters will be escaped as `\x00` alike.
 * `0` and `-0` are different in jsex
-* Objects returned from `parseJsex` have a `null` prototype. Which means it is safe to use any key name. except `__proto__`.
-* You can choose whether or not sorting the keys in `toJsex(data, sorting)`. In some particular cases it makes sance. eg: Comparing data structure
+* Deserialized Object (from `parseJsex`) has a `null` prototype. Which means it is safe to use any key name. except `__proto__`.
+* `toJsex` use `valueOf` rather then `toJSON` to serialize custom data types
+* You can choose whether or not sorting the keys by the 2nd param in `toJsex`. In some particular cases it makes sance. eg: Comparing data structure.
+* By default ASCII control characters in string will be escaped as `\xff` alike(rather then `\uffff`). You can change this behavior by the 3rd param in `toJsex`.
 
 ## When should I use jsex?
-When your javascript project needs to store data, or share data between other javascript projects, and JSON is not good enough for you. Then it is recommend to try out jsex.
+When you are using javascript and JSON is not good enough for you.

@@ -1,7 +1,11 @@
 (() => {
 	'use strict';
 	const arrays = ['Array', 'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array'],
-		strEncode = str => {
+		escapeChar = (a, unicode) => {
+			let c = a.charCodeAt(0);
+			return '\\' + (c < 16 ? unicode ? 'u000' : 'x0' : c < 256 ? unicode ? 'u00' : 'x' : c < 4096 ? 'u0' : 'u') + c.toString(16);
+		},
+		strEncode = (str, unicode) => {
 			return '"' + str.replace(/[\\"\x00-\x08\x0a-\x1f\x7f\xff\u061c\u200e\u200f\u2028-\u202e\u2066-\u2069]/g, a => {
 				if (a === '\\') {
 					return '\\\\';
@@ -18,15 +22,10 @@
 				} else if (a === '\r') {
 					return '\\r';
 				} else {
-					return escapeChar(a);
+					return escapeChar(a, unicode);
 				}
 			}) + '"';
-		},
-		escapeChar = a => {
-			let c = a.charCodeAt(0);
-			return (c < 16 ? '\\x0' : c < 256 ? '\\x' : c < 4096 ? '\\u0' : '\\u') + c.toString(16);
 		};
-
 	if (typeof globalThis === 'undefined') {
 		self.globalThis = self;
 	}
@@ -318,14 +317,16 @@
 		}
 	};
 	//serialize js data to jsex
-	globalThis.toJsex = (d, sorting) => {
+	//sorting: whether sorting keys in Map, Set and Object
+	//unicode: whether escape ASCII control characters to \uffff alike
+	globalThis.toJsex = (d, sorting, unicode) => {
 		let s;
 		if (d == null) {
 			s = String(d);
 		} else {
 			let t = dataType(d);
 			if (t === 'string') {
-				s = strEncode(d);
+				s = strEncode(d, unicode);
 			} else if (t === 'boolean') {
 				s = d.toString();
 			} else if (t === 'number') {
@@ -333,7 +334,7 @@
 			} else if (t === 'symbol') {
 				s = Symbol.keyFor(d);
 				if (typeof s === 'string') {
-					s = 'Symbol.for(' + strEncode(s) + ')';
+					s = 'Symbol.for(' + strEncode(s, unicode) + ')';
 				} else {
 					if ('description' in Symbol.prototype) {
 						s = d.description;
@@ -342,7 +343,7 @@
 						s = s.length > 8 ? s.substr(7, s.length - 8) : '';
 					}
 					if (!(t = s.match(/^Symbol\.(\w+)$/)) || Symbol[t[1]] !== d) {
-						s = s ? 'Symbol(' + strEncode(s) + ')' : 'Symbol()';
+						s = s ? 'Symbol(' + strEncode(s, unicode) + ')' : 'Symbol()';
 					}
 				}
 			} else if (t === 'bigint') {
@@ -360,14 +361,14 @@
 					} else if (a === '\r') {
 						return '\\r';
 					} else {
-						return escapeChar(a);
+						return escapeChar(a, unicode);
 					}
 				}).replace(/^(?=\/)/, '\\').replace(/[^\\](\\\\)*(?=\/)/g, '$&\\') : '(?:)') + '/' + d.flags;
 			} else if (t === 'Error') {
 				s = ['RangeError', 'ReferenceError', 'SyntaxError', 'TypeError', 'URIError', 'EvalError'].indexOf(d.name) < 0 ? 'Error' : d.name;
 				s += '(';
 				if (d.message) {
-					s += strEncode(String(d.message));
+					s += strEncode(d.message, unicode);
 				}
 				s += ')';
 			} else if (arrays.indexOf(t) >= 0) {
@@ -399,7 +400,7 @@
 				}
 				for (let i = 0; i < n.length; i++) {
 					if (n[i] !== '__proto__' && (t || n[i] !== 'prototype')) {
-						c.push(strEncode(n[i]) + ':' + toJsex(d[n[i]], sorting));
+						c.push(strEncode(n[i]) + ':' + toJsex(d[n[i]], sorting), unicode);
 					}
 				}
 				n = Object.getOwnPropertySymbols(d).map(v => '[' + toJsex(v, sorting) + ']:' + toJsex(d[v], sorting));
@@ -476,7 +477,7 @@
 	};
 
 	globalThis.clearProto = o => {
-		let t = dataType(o)
+		let t = dataType(o);
 		if (t === 'Object') {
 			Reflect.setPrototypeOf(o, null);
 			for (let n in o) {
