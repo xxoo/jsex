@@ -6,13 +6,15 @@
 			return '\\' + (c < 16 ? unicode ? 'u000' : 'x0' : c < 256 ? unicode ? 'u00' : 'x' : c < 4096 ? 'u0' : 'u') + c.toString(16);
 		},
 		strEncode = (str, unicode) => {
-			return '"' + str.replace(/[\\"\x00-\x08\x0a-\x1f\x7f\xff\u061c\u200e\u200f\u2028-\u202e\u2066-\u2069]/g, a => {
+			return '"' + str.replace(/[\\"\x00-\x1f\x7f-\x9f\xad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g, a => {
 				if (a === '\\') {
 					return '\\\\';
 				} else if (a === '"') {
 					return '\\"';
 				} else if (a === '\b') {
 					return '\\b';
+				} else if (a === '\t') {
+					return '\\t';
 				} else if (a === '\n') {
 					return '\\n';
 				} else if (a === '\v') {
@@ -225,7 +227,7 @@
 				value: +m[0],
 				length: m[0].length
 			};
-		} else if (m = this.match(/^"(?:(?:[^\x00-\x08\x0a-\x1f\x7f\xff\u061c\u200e\u200f\u2028-\u202e\u2066-\u2069"]|\\")*?[^\\\x00-\x08\x0a-\x1f\x7f\xff\u061c\u200e\u200f\u2028-\u202e\u2066-\u2069])??(?:\\\\)*"/)) {
+		} else if (m = this.match(/^"(?:(?:[^\n\r"]|\\")*?[^\\\n\r])??(?:\\\\)*"/)) {
 			try {
 				r = {
 					value: m[0].replace(/^"|"$|\\[\\btnvfr"]|\\x[0-f]{2}|\\u[0-f]{4}|\\/g, a => {
@@ -256,7 +258,7 @@
 					length: m[0].length
 				};
 			} catch (e) { }
-		} else if (m = this.match(/^\/((?:\\\\)+|(?:[^\\\/]|[^\/][^\x00-\x08\x0a-\x1f\x7f\xff\u061c\u200e\u200f\u2028-\u202e\u2066-\u2069]*?[^\\\x00-\x08\x0a-\x1f\x7f\xff\u061c\u200e\u200f\u2028-\u202e\u2066-\u2069])(?:\\\\)*)\/(g?i?m?s?u?y?)/)) {
+		} else if (m = this.match(/^\/((?:\\\\)+|(?:[^\\\/]|[^\/][^\n\r]*?[^\\\n\r])(?:\\\\)*)\/(g?i?m?s?u?y?)/)) {
 			try {
 				r = {
 					value: RegExp(m[1], m[2]),
@@ -351,7 +353,7 @@
 			} else if (t === 'Date') {
 				s = 'new Date(' + d.getTime() + ')';
 			} else if (t === 'RegExp') {
-				s = '/' + (d.source ? d.source.replace(/[\x00-\x08\x0a-\x1f\x7f\xff\u061c\u200e\u200f\u2028-\u202e\u2066-\u2069]/g, a => {
+				s = '/' + (d.source ? d.source.replace(/[\x00-\x08\x0a-\x1f\x7f-\x9f\xad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g, a => {
 					if (a === '\n') {
 						return '\\n';
 					} else if (a === '\v') {
