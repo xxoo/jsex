@@ -1,12 +1,12 @@
 (() => {
 	'use strict';
 	const arrays = ['Array', 'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array'],
-		escapeChar = (a, unicode) => {
+		escapeChar = (a, jsonCompatible) => {
 			let c = a.charCodeAt(0);
-			return '\\' + (c < 16 ? unicode ? 'u000' : 'x0' : c < 256 ? unicode ? 'u00' : 'x' : c < 4096 ? 'u0' : 'u') + c.toString(16);
+			return '\\' + (c < 16 ? jsonCompatible ? 'u000' : 'x0' : c < 256 ? jsonCompatible ? 'u00' : 'x' : c < 4096 ? 'u0' : 'u') + c.toString(16);
 		},
-		strEncode = (str, unicode) => {
-			return '"' + str.replace(/[\\"\x00-\x1f\ud800-\udfff]/g, a => {
+		strEncode = (str, jsonCompatible) => {
+			return '"' + str.replace(jsonCompatible ? /[\\"\x00-\x1f\ud800-\udfff]/g : /[\\"\x00-\x08\x0a-\x1f]/g, a => {
 				if (a === '\\') {
 					return '\\\\';
 				} else if (a === '"') {
@@ -24,7 +24,7 @@
 				} else if (a === '\r') {
 					return '\\r';
 				} else {
-					return escapeChar(a, unicode);
+					return escapeChar(a, jsonCompatible);
 				}
 			}) + '"';
 		};
@@ -222,15 +222,15 @@
 				value: BigInt(m[1]),
 				length: m[0].length
 			};
-		} else if (m = this.match(/^-?\d+(?:\.\d+)?(?:[Ee][+\-]?\d+)?/)) {
+		} else if (m = this.match(/^(-?)(0b[01]+|0o[0-7]+|0x[0-fA-F]+|[1-9](?:\.\d+)?[eE][-+]?[1-9]\d*|0\.\d+?|[1-9]\d*(?:\.\d+)?|0)/)) {
 			r = {
-				value: +m[0],
+				value: m[1] ? -m[2] : +m[2],
 				length: m[0].length
 			};
 		} else if (m = this.match(/^"(?:(?:[^\n\r"]|\\")*?[^\\\n\r])??(?:\\\\)*"/)) {
 			try {
 				r = {
-					value: m[0].replace(/^"|"$|\\[\\btnvfr"]|\\x[0-f]{2}|\\u[0-f]{4}|\\/g, a => {
+					value: m[0].replace(/^"|"$|\\[\\btnvfr"]|\\x[0-fA-F]{2}|\\u([0-fA-F]{4}|\{[0-fA-F]{1,5}\})|\\/g, a => {
 						if (a === '"') {
 							return '';
 						} else if (a === '\\\\') {
@@ -250,7 +250,11 @@
 						} else if (a === '\\r') {
 							return '\r';
 						} else if (a.length > 3) {
-							return String.fromCharCode('0x' + a.substr(2));
+							if (a[2] === '{') {
+								return String.fromCodePoint('0x' + a.substr(3, a.length - 4));
+							} else {
+								return String.fromCharCode('0x' + a.substr(2));
+							}
 						} else {
 							throw 'bad escape in string';
 						}
@@ -320,15 +324,15 @@
 	};
 	//serialize js data to jsex
 	//sorting: whether sorting keys in Map, Set and Object
-	//unicode: whether escape ASCII control characters to \uffff alike
-	globalThis.toJsex = (d, sorting, unicode) => {
+	//jsonCompatible: whether generate JSON compatible string. this argument makes sance only if data doesn't contain extended types
+	globalThis.toJsex = (d, sorting, jsonCompatible) => {
 		let s;
 		if (d == null) {
 			s = String(d);
 		} else {
 			let t = dataType(d);
 			if (t === 'string') {
-				s = strEncode(d, unicode);
+				s = strEncode(d, jsonCompatible);
 			} else if (t === 'boolean') {
 				s = d.toString();
 			} else if (t === 'number') {
@@ -336,7 +340,7 @@
 			} else if (t === 'symbol') {
 				s = Symbol.keyFor(d);
 				if (typeof s === 'string') {
-					s = 'Symbol.for(' + strEncode(s, unicode) + ')';
+					s = 'Symbol.for(' + strEncode(s) + ')';
 				} else {
 					if ('description' in Symbol.prototype) {
 						s = d.description;
@@ -345,7 +349,7 @@
 						s = s.length > 8 ? s.substr(7, s.length - 8) : '';
 					}
 					if (!(t = s.match(/^Symbol\.(\w+)$/)) || Symbol[t[1]] !== d) {
-						s = s ? 'Symbol(' + strEncode(s, unicode) + ')' : 'Symbol()';
+						s = s ? 'Symbol(' + strEncode(s) + ')' : 'Symbol()';
 					}
 				}
 			} else if (t === 'bigint') {
@@ -353,7 +357,7 @@
 			} else if (t === 'Date') {
 				s = 'new Date(' + d.getTime() + ')';
 			} else if (t === 'RegExp') {
-				s = '/' + (d.source ? d.source.replace(/[\x00-\x1f\ud800-\udfff]/g, a => {
+				s = '/' + (d.source ? d.source.replace(/[\x00-\x08\x0a-\x1f]/g, a => {
 					if (a === '\n') {
 						return '\\n';
 					} else if (a === '\v') {
@@ -363,14 +367,14 @@
 					} else if (a === '\r') {
 						return '\\r';
 					} else {
-						return escapeChar(a, unicode);
+						return escapeChar(a);
 					}
 				}).replace(/^(?=\/)/, '\\').replace(/[^\\](\\\\)*(?=\/)/g, '$&\\') : '(?:)') + '/' + d.flags;
 			} else if (t === 'Error') {
 				s = ['RangeError', 'ReferenceError', 'SyntaxError', 'TypeError', 'URIError', 'EvalError'].indexOf(d.name) < 0 ? 'Error' : d.name;
 				s += '(';
 				if (d.message) {
-					s += strEncode(d.message, unicode);
+					s += strEncode(d.message);
 				}
 				s += ')';
 			} else if (arrays.indexOf(t) >= 0) {
@@ -379,20 +383,20 @@
 					if (i > 0) {
 						s += ',';
 					}
-					s += toJsex(d[i], sorting, unicode);
+					s += toJsex(d[i], sorting, jsonCompatible);
 				}
 				s += ']';
 			} else if (['Map', 'Set'].indexOf(t) >= 0) {
 				let c = [];
 				for (let n of d) {
-					c.push(toJsex(n, sorting, unicode));
+					c.push(toJsex(n, sorting, jsonCompatible));
 				}
 				if (sorting) {
 					c.sort();
 				}
 				s = 'new ' + t + '([' + c.join(',') + '])';
 			} else if (typeof d.valueOf === 'function' && d !== (t = d.valueOf())) {
-				s = toJsex(t, sorting, unicode);
+				s = toJsex(t, sorting, jsonCompatible);
 			} else {
 				let c = [],
 					n = Object.getOwnPropertyNames(d);
@@ -402,10 +406,10 @@
 				}
 				for (let i = 0; i < n.length; i++) {
 					if (n[i] !== '__proto__' && (t || n[i] !== 'prototype')) {
-						c.push(strEncode(n[i], unicode) + ':' + toJsex(d[n[i]], sorting, unicode));
+						c.push(strEncode(n[i], jsonCompatible) + ':' + toJsex(d[n[i]], sorting, jsonCompatible));
 					}
 				}
-				n = Object.getOwnPropertySymbols(d).map(v => '[' + toJsex(v, sorting, unicode) + ']:' + toJsex(d[v], sorting, unicode));
+				n = Object.getOwnPropertySymbols(d).map(v => '[' + toJsex(v) + ']:' + toJsex(d[v], sorting, jsonCompatible));
 				if (sorting) {
 					n.sort();
 				}

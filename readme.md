@@ -17,7 +17,7 @@ As many as possible, including:
 
 
 ## How to serialize data?
-By calling `toJsex(data, sorting, unicode)`. `sorting` and `unicode` default to `false`, here is an example:
+By calling `toJsex(data, sorting, jsonCompatible)`. `sorting` and `jsonCompatible` default to `false`, here is an example:
 ```javascript
 import './jsex.js';
 let data = {};
@@ -54,8 +54,8 @@ Yes, there are a few more differences.
 * `0` and `-0` are different in jsex
 * Deserialized Object (from `parseJsex`) has a `null` prototype. Which means it is safe to use any key name. except `__proto__`.
 * `toJsex` use `valueOf` rather then `toJSON` to serialize custom data types
-* You can choose whether or not sorting the keys with the 2nd argument of `toJsex`. In some particular cases it makes sance. eg: Comparing data structure.
-* By default ASCII control characters in string are escaped as `\x00` alike(rather then `\u0000`). You can change this behavior with the 3rd argument of `toJsex`.
+* You can choose whether or not sorting the keys with the 2nd argument of `toJsex`. It makes sance in some particular cases. eg: Comparing data structure.
+* By default jsex doesn't use JSON style string escaping. You can change this behavior with the 3rd argument of `toJsex`. It makes sance if the data you're serializing doesn't contain extended types.
 
 
 ## When should I use jsex?
