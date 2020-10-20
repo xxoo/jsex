@@ -6,7 +6,7 @@
 			return '\\' + (c < 16 ? unicode ? 'u000' : 'x0' : c < 256 ? unicode ? 'u00' : 'x' : c < 4096 ? 'u0' : 'u') + c.toString(16);
 		},
 		strEncode = (str, unicode) => {
-			return '"' + str.replace(/[\\"\x00-\x1f\x7f-\x9f\xad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g, a => {
+			return '"' + str.replace(/[\\"\x00-\x1f\ud800-\udfff]/g, a => {
 				if (a === '\\') {
 					return '\\\\';
 				} else if (a === '"') {
@@ -353,7 +353,7 @@
 			} else if (t === 'Date') {
 				s = 'new Date(' + d.getTime() + ')';
 			} else if (t === 'RegExp') {
-				s = '/' + (d.source ? d.source.replace(/[\x00-\x08\x0a-\x1f\x7f-\x9f\xad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g, a => {
+				s = '/' + (d.source ? d.source.replace(/[\x00-\x1f\ud800-\udfff]/g, a => {
 					if (a === '\n') {
 						return '\\n';
 					} else if (a === '\v') {
