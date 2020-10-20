@@ -44,16 +44,6 @@
 				value: undefined,
 				length: l
 			};
-		} else if (this.substr(0, l = 8) === 'Infinity') {
-			r = {
-				value: Infinity,
-				length: l
-			};
-		} else if (this.substr(0, l = 9) === '-Infinity') {
-			r = {
-				value: -Infinity,
-				length: l
-			};
 		} else if (this.substr(0, l = 3) === 'NaN') {
 			r = {
 				value: NaN,
@@ -222,7 +212,7 @@
 				value: BigInt(m[1]),
 				length: m[0].length
 			};
-		} else if (m = this.match(/^(-?)(0b[01]+|0o[0-7]+|0x[0-fA-F]+|[1-9](?:\.\d+)?[eE][-+]?[1-9]\d*|0\.\d+?|[1-9]\d*(?:\.\d+)?|0)/)) {
+		} else if (m = this.match(/^(-?)(0[bB][01]+|0[oO][0-7]+|0[xX][0-fA-F]+|[1-9](?:\.\d+)?[eE][-+]?[1-9]\d*|0\.\d+?|[1-9]\d*(?:\.\d+)?|0|Infinity)/)) {
 			r = {
 				value: m[1] ? -m[2] : +m[2],
 				length: m[0].length
