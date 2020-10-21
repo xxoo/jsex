@@ -212,7 +212,7 @@
 				value: m[1] ? -BigInt(m[2]) : BigInt(m[2]),
 				length: m[0].length
 			};
-		} else if (m = this.match(/^(-?)(0[bB][01]+|0[oO][0-7]+|0[xX][0-fA-F]+|[1-9](?:\.\d+)?[eE][-+]?[1-9]\d*|0\.\d+?|[1-9]\d*(?:\.\d+)?|0|Infinity)/)) {
+		} else if (m = this.match(/^(-?)(Infinity|0[bB][01]+|0[oO][0-7]+|0[xX][0-fA-F]+|[1-9](?:\.\d+)?[eE][-+]?[1-9]\d*|(?:[1-9]\d*|0)(?:\.\d+)?)/)) {
 			r = {
 				value: m[1] ? -m[2] : +m[2],
 				length: m[0].length
