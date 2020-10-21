@@ -1,12 +1,8 @@
 (() => {
 	'use strict';
 	const arrays = ['Array', 'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array'],
-		escapeChar = (a, jsonCompatible) => {
-			let c = a.charCodeAt(0);
-			return '\\' + (c < 16 ? jsonCompatible ? 'u000' : 'x0' : c < 256 ? jsonCompatible ? 'u00' : 'x' : c < 4096 ? 'u0' : 'u') + c.toString(16);
-		},
 		strEncode = (str, jsonCompatible) => {
-			return '"' + str.replace(jsonCompatible ? /[\\"\x00-\x1f\ud800-\udfff]/g : /[\\"\x00-\x08\x0a-\x1f]/g, a => {
+			return '"' + str.replace(jsonCompatible ? /[\\"\x00-\x1f\ud800-\udfff]/g : /[\n\r\\"]/g, a => {
 				if (a === '\\') {
 					return '\\\\';
 				} else if (a === '"') {
@@ -24,17 +20,10 @@
 				} else if (a === '\r') {
 					return '\\r';
 				} else {
-					return escapeChar(a, jsonCompatible);
+					let c = a.charCodeAt(0);
+					return '\\u' + (c < 16 ? '000' : c < 256 ? '00' : c < 4096 ? '0' : '') + c.toString(16);
 				}
 			}) + '"';
-		},
-		getValue = (o) => {
-			if (typeof o.valueOf === 'function') {
-				try {
-					o = o.valueOf();
-				} catch (e) { }
-			}
-			return o;
 		},
 		realToJsex = (d, log, sorting, jsonCompatible) => {
 			let s;
@@ -42,12 +31,14 @@
 				s = String(d);
 			} else {
 				let t = dataType(d);
-				if (t === 'string') {
-					s = strEncode(d, jsonCompatible);
-				} else if (t === 'boolean') {
+				if (t === 'boolean' || t === 'RegExp') {
 					s = d.toString();
+				} else if (t === 'string') {
+					s = strEncode(d, jsonCompatible);
 				} else if (t === 'number') {
 					s = Object.is(d, -0) ? '-0' : d.toString();
+				} else if (t === 'bigint') {
+					s = d + 'n';
 				} else if (t === 'symbol') {
 					s = Symbol.keyFor(d);
 					if (typeof s === 'string') {
@@ -63,24 +54,8 @@
 							s = s ? 'Symbol(' + strEncode(s) + ')' : 'Symbol()';
 						}
 					}
-				} else if (t === 'bigint') {
-					s = d + 'n';
 				} else if (t === 'Date') {
 					s = 'new Date(' + d.getTime() + ')';
-				} else if (t === 'RegExp') {
-					s = '/' + (d.source ? d.source.replace(/[\x00-\x08\x0a-\x1f]/g, a => {
-						if (a === '\n') {
-							return '\\n';
-						} else if (a === '\v') {
-							return '\\v';
-						} else if (a === '\f') {
-							return '\\f';
-						} else if (a === '\r') {
-							return '\\r';
-						} else {
-							return escapeChar(a);
-						}
-					}).replace(/^(?=\/)/, '\\').replace(/[^\\](\\\\)*(?=\/)/g, '$&\\') : '(?:)') + '/' + d.flags;
 				} else if (t === 'Error') {
 					s = ['RangeError', 'ReferenceError', 'SyntaxError', 'TypeError', 'URIError', 'EvalError'].indexOf(d.name) < 0 ? 'Error' : d.name;
 					s += '(';
@@ -110,14 +85,14 @@
 							c.sort();
 						}
 						s = 'new ' + t + '([' + c.join(',') + '])';
-					} else if (d !== (t = getValue(d))) {
+					} else if (typeof d.valueOf === 'function' && d !== (t = d.valueOf())) {
 						s = realToJsex(t, log, sorting, jsonCompatible);
 					} else {
 						let c = [],
 							n = Object.getOwnPropertyNames(d);
 						t = typeof d !== 'function';
 						for (let i = 0; i < n.length; i++) {
-							if (n[i] !== '__proto__' && (t || n[i] !== 'prototype')) {
+							if (n[i] !== '__proto__' && t || n[i] !== 'prototype') {
 								c.push(strEncode(n[i], jsonCompatible) + ':' + realToJsex(d[n[i]], log, sorting, jsonCompatible));
 							}
 						}
@@ -322,7 +297,7 @@
 				value: m[1] ? -m[2] : +m[2],
 				length: m[0].length
 			};
-		} else if (m = this.match(/^"(?:(?:[^\n\r"]|\\")*?[^\\\n\r])??(?:\\\\)*"/)) {
+		} else if (m = this.match(/^"(?:(?:[^\n\r"]|\\")*?[^\n\r\\])??(?:\\\\)*"/)) {
 			try {
 				r = {
 					value: m[0].replace(/^"|"$|\\[\\btnvfr"]|\\x[0-fA-F]{2}|\\u([0-fA-F]{4}|\{[0-fA-F]{1,5}\})|\\/g, a => {
@@ -357,7 +332,7 @@
 					length: m[0].length
 				};
 			} catch (e) { }
-		} else if (m = this.match(/^\/((?:\\\\)+|(?:[^\\\/]|[^\/][^\n\r]*?[^\\\n\r])(?:\\\\)*)\/(g?i?m?s?u?y?)/)) {
+		} else if (m = this.match(/^\/((?:\\\\)+|(?:[^\\\/]|[^\/][^\n\r]*?[^\n\r\\])(?:\\\\)*)\/(g?i?m?s?u?y?)/)) {
 			try {
 				r = {
 					value: RegExp(m[1], m[2]),
@@ -441,15 +416,15 @@
 				if (t1 === t2) {
 					if (t1 > 9) {
 						if (o1.size === o2.size) {
-							v = [];
-							for (let n of o1) {
-								v.push(toJsex(n, true));
-							}
 							let m = [];
-							for (let n of o2) {
+							for (let n of o1) {
 								m.push(toJsex(n, true));
 							}
-							return isEqual(v.sort(), m.sort());
+							v = [];
+							for (let n of o2) {
+								v.push(toJsex(n, true));
+							}
+							return isEqual(m.sort(), v.sort());
 						}
 					} else {
 						return toJsex(o1) === toJsex(o2);
@@ -466,17 +441,20 @@
 						return true;
 					}
 				} else {
-					v = Object.getOwnPropertyNames(o1);
-					if (v.length === Object.getOwnPropertyNames(o2).length) {
-						for (let i = 0; i < v.length; i++) {
-							if (!Object.prototype.hasOwnProperty.call(o2, v[i]) || !isEqual(o1[v[i]], o2[v[i]])) {
+					const ft = n => n !== '__proto__' && t || n !== 'prototype';
+					let t = typeof o1 !== 'function',
+						m = Object.getOwnPropertyNames(o1).filter(ft);
+					t = typeof o2 !== 'function';
+					if (Object.getOwnPropertyNames(o2).filter(ft).length === m.length) {
+						for (let i = 0; i < m.length; i++) {
+							if (!Object.prototype.hasOwnProperty.call(o2, m[i]) || !isEqual(o1[m[i]], o2[m[i]])) {
 								return false;
 							}
 						}
-						let m = Object.getOwnPropertySymbols(o2);
-						v = Object.getOwnPropertySymbols(o1);
+						m = Object.getOwnPropertySymbols(o1);
+						v = Object.getOwnPropertySymbols(o2);
 						if (m.length === v.length) {
-							return isEqual(m.map(n => toJsex([n, o2[n]], true)).sort(), v.map(n => toJsex([n, o1[n]], true)).sort());
+							return isEqual(m.map(n => toJsex([n, o1[n]], true)).sort(), v.map(n => toJsex([n, o2[n]], true)).sort());
 						}
 					}
 				}
