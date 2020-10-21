@@ -1,6 +1,7 @@
 (() => {
 	'use strict';
 	const arrays = ['Array', 'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array'],
+		ft = n => n !== 'prototype',
 		strEncode = (str, jsonCompatible) => {
 			return '"' + str.replace(jsonCompatible ? /[\\"\x00-\x1f\ud800-\udfff]/g : /[\n\r\\"]/g, a => {
 				if (a === '\\') {
@@ -92,8 +93,8 @@
 							n = Object.getOwnPropertyNames(d);
 						t = typeof d !== 'function';
 						for (let i = 0; i < n.length; i++) {
-							if (n[i] !== '__proto__' && t || n[i] !== 'prototype') {
-								c.push(strEncode(n[i], jsonCompatible) + ':' + realToJsex(d[n[i]], log, sorting, jsonCompatible));
+							if (t || ft(n[i])) {
+								c.push((n[i] === '__proto__' ? '["__proto__"]' : strEncode(n[i], jsonCompatible)) + ':' + realToJsex(d[n[i]], log, sorting, jsonCompatible));
 							}
 						}
 						n = Object.getOwnPropertySymbols(d).map(v => '[' + realToJsex(v) + ']:' + realToJsex(d[v], log, sorting, jsonCompatible));
@@ -261,17 +262,15 @@
 					}
 				} else if (ml) {
 					mf = this.substr(l).parseJsex();
-					if (mf && (typeof mf.value === 'string' || (Array.isArray(mf.value) && mf.value.length === 1 && typeof mf.value[0] === 'symbol'))) {
+					if (mf && (mm = typeof mf.value === 'string') || (Array.isArray(mf.value) && mf.value.length === 1 && ['symbol', 'string'].indexOf(typeof mf.value[0]) >= 0)) {
 						l += mf.length;
-						mm = typeof mf.value === 'string' ? mf.value : mf.value[0];
+						mm = mm ? mf.value : mf.value[0];
 						if (!(mm in m) && this.charAt(l) === ':') { //disallow index duplication
 							l += 1;
 							mf = this.substr(l).parseJsex();
 							if (mf) {
 								l += mf.length;
-								if (mm !== '__proto__') {
-									m[mm] = mf.value;
-								}
+								m[mm] = mf.value;
 								ml = false;
 								me = mq = true;
 								continue;
@@ -287,12 +286,12 @@
 					length: l + 1
 				};
 			}
-		} else if (m = this.match(/^(-?)(0[bB][01]+|0[oO][0-7]+|0[xX][0-fA-F]+|[1-9]\d*|0)n/)) {
+		} else if (m = this.match(/^(-?)([1-9]\d*|0(?:[bB][01]+|[oO][0-7]+|[xX][0-fA-F]+)?)n/)) {
 			r = {
 				value: m[1] ? -BigInt(m[2]) : BigInt(m[2]),
 				length: m[0].length
 			};
-		} else if (m = this.match(/^(-?)(Infinity|0[bB][01]+|0[oO][0-7]+|0[xX][0-fA-F]+|[1-9](?:\.\d+)?[eE][-+]?[1-9]\d*|(?:[1-9]\d*|0)(?:\.\d+)?)/)) {
+		} else if (m = this.match(/^(-?)(Infinity|0(?:[bB][01]+|[oO][0-7]+|[xX][0-fA-F]+)|[1-9](?:\.\d+)?[eE][-+]?[1-9]\d*|(?:[1-9]\d*|0)(?:\.\d+)?)/)) {
 			r = {
 				value: m[1] ? -m[2] : +m[2],
 				length: m[0].length
@@ -341,36 +340,33 @@
 			} catch (e) { }
 		} else if (m = this.match(/^(Range|Reference|Syntax|Type|URI|Eval)?Error\(/)) {
 			l = m[0].length;
-			m = {
-				g: m[1]
-			};
-			if (m.g === 'Range') {
-				m.g = RangeError;
-			} else if (m.g === 'Reference') {
-				m.g = ReferenceError;
-			} else if (m.g === 'Syntax') {
-				m.g = SyntaxError;
-			} else if (m.g === 'Type') {
-				m.g = TypeError;
-			} else if (m.g === 'URI') {
-				m.g = URIError;
-			} else if (m.g === 'Eval') {
-				m.g = EvalError;
+			if (m[1] === 'Range') {
+				m = RangeError;
+			} else if (m[1] === 'Reference') {
+				m = ReferenceError;
+			} else if (m[1] === 'Syntax') {
+				m = SyntaxError;
+			} else if (m[1] === 'Type') {
+				m = TypeError;
+			} else if (m[1] === 'URI') {
+				m = URIError;
+			} else if (m[1] === 'Eval') {
+				m = EvalError;
 			} else {
-				m.g = Error;
+				m = Error;
 			}
 			if (this.charAt(l) === ')') {
 				r = {
-					value: m.g(),
+					value: m(),
 					length: l + 1
 				};
 			} else {
-				m.f = this.substr(l).parseJsex();
-				if (m.f && typeof m.f.value === 'string') {
-					l += m.f.length;
+				let n = this.substr(l).parseJsex();
+				if (n && typeof n.value === 'string') {
+					l += n.length;
 					if (this.charAt(l) === ')') {
 						r = {
-							value: m.g(m.f.value),
+							value: m(n.value),
 							length: l + 1
 						};
 					}
@@ -441,11 +437,15 @@
 						return true;
 					}
 				} else {
-					const ft = n => n !== '__proto__' && t || n !== 'prototype';
-					let t = typeof o1 !== 'function',
-						m = Object.getOwnPropertyNames(o1).filter(ft);
-					t = typeof o2 !== 'function';
-					if (Object.getOwnPropertyNames(o2).filter(ft).length === m.length) {
+					let m = Object.getOwnPropertyNames(o1);
+					if (typeof o1 !== 'function') {
+						m = m.filter(ft);
+					}
+					v = Object.getOwnPropertyNames(o2);
+					if (typeof o2 !== 'function') {
+						v = v.filter(ft);
+					}
+					if (m.length === v.length) {
 						for (let i = 0; i < m.length; i++) {
 							if (!Object.prototype.hasOwnProperty.call(o2, m[i]) || !isEqual(o1[m[i]], o2[m[i]])) {
 								return false;

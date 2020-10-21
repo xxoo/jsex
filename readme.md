@@ -52,7 +52,7 @@ Yes, but only for compact JSON strings. Any unnecessary blank space or commants 
 ## Is there any other difference between JSON and jsex?
 Yes, there are a few more differences.
 * `0` and `-0` are different in jsex
-* Deserialized Object (from `parseJsex`) has a `null` prototype. Which means it is safe to use any key name. except `__proto__`.
+* Deserialized Object from `parseJsex` has no prototype. Which means it is safe to use any key name.
 * `toJsex` use `valueOf` rather then `toJSON` to serialize custom data types
 * You can choose whether or not sorting the keys with the 2nd argument of `toJsex`. It makes sense in some particular cases. eg: Comparing data structure.
 * By default jsex doesn't use JSON style string escaping. You can change this behavior with the 3rd argument of `toJsex`. It makes sense if the data you're serializing doesn't contain extended types.
