@@ -5,11 +5,11 @@ jsex is an extended JSON format that supports most native javascript data types.
 ## How many data types does jsex support?
 As many as possible, including:
 * All types supported in JSON
+* bigint
+* symbol
 * Date
-* RegExp
-* Bigint
 * Error
-* Symbol
+* RegExp
 * Set
 * Map
 * Typed Arrays (will be serialized as normal array)
