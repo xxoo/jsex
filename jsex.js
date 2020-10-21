@@ -28,15 +28,6 @@
 				}
 			}) + '"';
 		},
-		circularCheck = (log, d) => {
-			if (log.has(d)) {
-				throw 'circular structure detected';
-			} else {
-				log = new Set(log);
-				log.add(d);
-				return log;
-			}
-		},
 		getValue = (o) => {
 			if (typeof o.valueOf === 'function') {
 				try {
@@ -98,7 +89,11 @@
 					}
 					s += ')';
 				} else {
-					log = circularCheck(log, d);
+					if (log.has(d)) {
+						throw TypeError('circular structure detected');
+					} else {
+						log.add(d);
+					}
 					if (arrays.indexOf(t) >= 0) {
 						s = '[';
 						for (let i = 0; i < d.length; i++) {
@@ -137,6 +132,7 @@
 						}
 						s = '{' + c.concat(n).join(',') + '}';
 					}
+					log.delete(d);
 				}
 			}
 			return s;
