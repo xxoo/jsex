@@ -88,12 +88,10 @@
 						s += strEncode(d.message);
 					}
 					s += ')';
+				} else if (log.has(d)) {
+					throw TypeError('circular structure detected');
 				} else {
-					if (log.has(d)) {
-						throw TypeError('circular structure detected');
-					} else {
-						log.add(d);
-					}
+					log.add(d);
 					if (arrays.indexOf(t) >= 0) {
 						s = '[';
 						for (let i = 0; i < d.length; i++) {
@@ -118,9 +116,6 @@
 						let c = [],
 							n = Object.getOwnPropertyNames(d);
 						t = typeof d !== 'function';
-						if (sorting) {
-							n.sort();
-						}
 						for (let i = 0; i < n.length; i++) {
 							if (n[i] !== '__proto__' && (t || n[i] !== 'prototype')) {
 								c.push(strEncode(n[i], jsonCompatible) + ':' + realToJsex(d[n[i]], log, sorting, jsonCompatible));
@@ -128,9 +123,10 @@
 						}
 						n = Object.getOwnPropertySymbols(d).map(v => '[' + realToJsex(v) + ']:' + realToJsex(d[v], log, sorting, jsonCompatible));
 						if (sorting) {
+							c.sort();
 							n.sort();
 						}
-						s = '{' + c.concat(n).join(',') + '}';
+						s = '{' + c.join(',') + (c.length && n.length ? ',' : '') + n.join(',') + '}';
 					}
 					log.delete(d);
 				}
