@@ -92,9 +92,12 @@
 						let c = [],
 							n = Object.getOwnPropertyNames(d);
 						t = typeof d !== 'function';
+						if (!jsonCompatible) {
+							c.push('"__proto__":null');
+						}
 						for (let i = 0; i < n.length; i++) {
 							if (t || ft(n[i])) {
-								c.push((n[i] === '__proto__' ? '["__proto__"]' : strEncode(n[i], jsonCompatible)) + ':' + realToJsex(d[n[i]], log, sorting, jsonCompatible));
+								c.push((!jsonCompatible && n[i] === '__proto__' ? '["__proto__"]' : strEncode(n[i], jsonCompatible)) + ':' + realToJsex(d[n[i]], log, sorting, jsonCompatible));
 							}
 						}
 						n = Object.getOwnPropertySymbols(d).map(v => '[' + realToJsex(v) + ']:' + realToJsex(d[v], log, sorting, jsonCompatible));
@@ -264,13 +267,15 @@
 					mf = this.substr(l).parseJsex();
 					if (mf && (mm = typeof mf.value === 'string') || (Array.isArray(mf.value) && mf.value.length === 1 && ['symbol', 'string'].indexOf(typeof mf.value[0]) >= 0)) {
 						l += mf.length;
-						mm = mm ? mf.value : mf.value[0];
-						if (!(mm in m) && this.charAt(l) === ':') { //disallow index duplication
+						mm = mm ? mf.value === '__proto__' ? null : mf.value : mf.value[0];
+						if (this.charAt(l) === ':') {
 							l += 1;
 							mf = this.substr(l).parseJsex();
 							if (mf) {
 								l += mf.length;
-								m[mm] = mf.value;
+								if (mm !== null) {
+									m[mm] = mf.value;
+								}
 								ml = false;
 								me = mq = true;
 								continue;
@@ -383,7 +388,8 @@
 		} else {
 			let t = typeof a;
 			if (['function', 'object'].indexOf(t) >= 0) {
-				t = Object.prototype.toString.call(a).replace(/^\[object |\]$/g, '');
+				t = Object.prototype.toString.call(a);
+				t = t.substr(8, t.length - 9);
 			}
 			return t;
 		}
@@ -461,19 +467,5 @@
 			}
 		}
 		return false;
-	};
-
-	globalThis.clearProto = o => {
-		let t = dataType(o);
-		if (t === 'Object') {
-			Reflect.setPrototypeOf(o, null);
-			for (let n in o) {
-				clearProto(o[n]);
-			}
-		} else if (['Map', 'Set', 'Array'].indexOf(t) >= 0) {
-			for (let n of o) {
-				clearProto(n);
-			}
-		}
 	};
 })();

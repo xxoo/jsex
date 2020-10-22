@@ -34,7 +34,7 @@ console.log(s);
 
 
 ## How to deserialize?
-Basically you can just `eval` the string to restore data. But for security reasons you might need to use `String.prototype.parseJsex()`. This method returns undefined if parsing failed, or an object with a `length` key(characters parsed in this string) and a `value` key(the result).
+Basically you can just `eval` the string if you trust the source. However if you don't, use `String.prototype.parseJsex()` instead. This method returns `undefined` if parsing failed, or an `Object` with a `length` key(characters parsed in this string) and a `value` key(the real result).
 ```javascript
 //following the above code
 let v1 = eval('(' + s + ')'),
@@ -51,11 +51,11 @@ Yes, but only for compact JSON strings. Any unnecessary blank space or commants 
 
 ## Is there any other difference between JSON and jsex?
 Yes, there are a few more differences.
-* `0` and `-0` are different in jsex
-* Deserialized Object from `parseJsex` has no prototype. Which means it is safe to use any key name.
-* `toJsex` use `valueOf` rather then `toJSON` to serialize custom data types
+* `0` and `-0` are different in jsex.
+* `Object` in jsex has no prototype. Which means it is safe to use any key name.
+* `toJsex` use `valueOf` rather then `toJSON` to serialize custom data types.
 * You can choose whether or not sorting the keys with the 2nd argument of `toJsex`. It makes sense in some particular cases. eg: Comparing data structure.
-* By default jsex doesn't use JSON style string escaping. You can change this behavior with the 3rd argument of `toJsex`. It makes sense if the data you're serializing doesn't contain extended types.
+* `toJsex` doesn't generate JSON compatible string by default. You can change this with the 3rd argument. It makes sense only if the data you're serializing doesn't contain extended types.
 
 
 ## When should I use jsex?
