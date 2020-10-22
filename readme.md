@@ -53,7 +53,7 @@ Yes, there are a few more differences.
 * `0` and `-0` are different in jsex.
 * `Object` in jsex has no prototype. Which means it is safe to use any key name.
 * `toJsex` use `valueOf` rather then `toJSON` to serialize custom data types.
-* You can choose whether or not sorting the keys with the 2nd argument of `toJsex`. It makes sense in some particular cases. eg: Comparing data structure.
+* You may sort content of `Set`, `Map` and `Object` with the 2nd argument of `toJsex`. It makes sense in some particular cases. eg: Comparing data structure.
 * `toJsex` doesn't generate JSON compatible string by default. You can change this with the 3rd argument. It makes sense only if the data you're serializing doesn't contain extended types.
 
 
