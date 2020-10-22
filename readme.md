@@ -29,7 +29,6 @@ data[Symbol.for('symbolKey')] = 'valueForSymbolKey';
 data.normalKey = 'valueForNormalKey';
 let s = toJsex(data);
 console.log(s);
-//{"someRegex":/\wjsex\w/gi,"someSet":new Set([1,1n]),"normalKey":"valueForNormalKey",[Symbol.for("symbolKey")]:"valueForSymbolKey"}
 ```
 
 
