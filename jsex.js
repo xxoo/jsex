@@ -49,7 +49,7 @@
 							s = d.description;
 						} else {
 							s = d.toString();
-							s = s.length > 8 ? s.substr(7, s.length - 8) : '';
+							s = s.length > 8 ? s.substring(7, s.length - 1) : '';
 						}
 						if (!(t = s.match(/^Symbol\.(\w+)$/)) || Symbol[t[1]] !== d) {
 							s = s ? 'Symbol(' + strEncode(s) + ')' : 'Symbol()';
@@ -118,52 +118,52 @@
 	//deserialize jsex, support JSON string
 	String.prototype.parseJsex = function () {
 		let m, l, r;
-		if (this.substr(0, l = 4) === 'null') {
+		if (this.substring(0, l = 4) === 'null') {
 			r = {
 				value: null,
 				length: l
 			};
-		} else if (this.substr(0, l = 9) === 'undefined') {
+		} else if (this.substring(0, l = 9) === 'undefined') {
 			r = {
 				value: undefined,
 				length: l
 			};
-		} else if (this.substr(0, l = 3) === 'NaN') {
+		} else if (this.substring(0, l = 3) === 'NaN') {
 			r = {
 				value: NaN,
 				length: l
 			};
-		} else if (this.substr(0, l = 4) === 'true') {
+		} else if (this.substring(0, l = 4) === 'true') {
 			r = {
 				value: true,
 				length: l
 			};
-		} else if (this.substr(0, l = 5) === 'false') {
+		} else if (this.substring(0, l = 5) === 'false') {
 			r = {
 				value: false,
 				length: l
 			};
-		} else if (this.substr(0, l = 9) === 'new Date(') {
-			m = this.substr(l).parseJsex();
-			if (m && typeof m.value === 'number' && this.charAt(l += m.length) === ')') {
+		} else if (this.substring(0, l = 9) === 'new Date(') {
+			m = this.substring(l).parseJsex();
+			if (m && typeof m.value === 'number' && this[l += m.length] === ')') {
 				r = {
 					value: new Date(m.value),
 					length: l + 1
 				};
 			}
-		} else if (this.substr(0, l = 6) === 'Symbol') {
-			if (this.charAt(l) === '(') {
+		} else if (this.substring(0, l = 6) === 'Symbol') {
+			if (this[l] === '(') {
 				l += 1;
-				if (this.charAt(l) === ')') {
+				if (this[l] === ')') {
 					r = {
 						value: Symbol(),
 						length: l + 1
 					};
 				} else {
-					m = this.substr(l).parseJsex();
+					m = this.substring(l).parseJsex();
 					if (m && typeof m.value === 'string') {
 						l += m.length;
-						if (this.charAt(l) === ')') {
+						if (this[l] === ')') {
 							r = {
 								value: Symbol(m.value),
 								length: l + 1
@@ -171,35 +171,35 @@
 						}
 					}
 				}
-			} else if (this.substr(l, 5) === '.for(') {
+			} else if (this.substring(l, l + 5) === '.for(') {
 				l += 5;
-				m = this.substr(l).parseJsex();
+				m = this.substring(l).parseJsex();
 				if (m && typeof m.value === 'string') {
 					l += m.length;
-					if (this.charAt(l) === ')') {
+					if (this[l] === ')') {
 						r = {
 							value: Symbol.for(m.value),
 							length: l + 1
 						};
 					}
 				}
-			} else if ((m = this.substr(l).match(/^\.(\w+)/)) && typeof Symbol[m[1]] === 'symbol') {
+			} else if ((m = this.substring(l).match(/^\.(\w+)/)) && typeof Symbol[m[1]] === 'symbol') {
 				r = {
 					value: Symbol[m[1]],
 					length: l + m[0].length
 				};
 			}
-		} else if (this.substr(0, l = 8) === 'new Set(') {
-			m = this.substr(l).parseJsex();
-			if (m && Array.isArray(m.value) && this.charAt(l += m.length) === ')') {
+		} else if (this.substring(0, l = 8) === 'new Set(') {
+			m = this.substring(l).parseJsex();
+			if (m && Array.isArray(m.value) && this[l += m.length] === ')') {
 				r = {
 					value: new Set(m.value),
 					length: l + 1
 				};
 			}
-		} else if (this.substr(0, l = 8) === 'new Map(') {
-			m = this.substr(l).parseJsex();
-			if (m && Array.isArray(m.value) && this.charAt(l += m.length) === ')') {
+		} else if (this.substring(0, l = 8) === 'new Map(') {
+			m = this.substring(l).parseJsex();
+			if (m && Array.isArray(m.value) && this[l += m.length] === ')') {
 				for (let i = 0; i < m.value.length; i++) {
 					if (!Array.isArray(m.value[i]) || m.value[i].length !== 2) {
 						m.e = true;
@@ -213,7 +213,7 @@
 					};
 				}
 			}
-		} else if (this.charAt(0) === '[') {
+		} else if (this[0] === '[') {
 			let mf,
 				ml = true,
 				me = true,
@@ -221,16 +221,16 @@
 				mn = false;
 			m = [];
 			l = 1;
-			while (!(mn || (me && this.charAt(l) === ']'))) {
+			while (!(mn || (me && this[l] === ']'))) {
 				if (mq) {
-					if (this.charAt(l) === ',') {
+					if (this[l] === ',') {
 						l += 1;
 						ml = true;
 						me = mq = false;
 						continue;
 					}
 				} else if (ml) {
-					mf = this.substr(l).parseJsex();
+					mf = this.substring(l).parseJsex();
 					if (mf) {
 						l += mf.length;
 						m.push(mf.value);
@@ -247,7 +247,7 @@
 					length: l + 1
 				};
 			}
-		} else if (this.charAt(0) === '{') {
+		} else if (this[0] === '{') {
 			let mf, mm,
 				ml = true,
 				me = true,
@@ -255,22 +255,22 @@
 				mn = false;
 			m = Object.create(null);
 			l = 1;
-			while (!(mn || (me && this.charAt(l) === '}'))) {
+			while (!(mn || (me && this[l] === '}'))) {
 				if (mq) {
-					if (this.charAt(l) === ',') {
+					if (this[l] === ',') {
 						l += 1;
 						ml = true;
 						me = mq = false;
 						continue;
 					}
 				} else if (ml) {
-					mf = this.substr(l).parseJsex();
+					mf = this.substring(l).parseJsex();
 					if (mf && (mm = typeof mf.value === 'string') || (Array.isArray(mf.value) && mf.value.length === 1 && ['symbol', 'string'].indexOf(typeof mf.value[0]) >= 0)) {
 						l += mf.length;
 						mm = mm ? mf.value === '__proto__' ? null : mf.value : mf.value[0];
-						if (this.charAt(l) === ':') {
+						if (this[l] === ':') {
 							l += 1;
-							mf = this.substr(l).parseJsex();
+							mf = this.substring(l).parseJsex();
 							if (mf) {
 								l += mf.length;
 								if (mm !== null) {
@@ -325,9 +325,9 @@
 							return '\r';
 						} else if (a.length > 3) {
 							if (a[2] === '{') {
-								return String.fromCodePoint('0x' + a.substr(3, a.length - 4));
+								return String.fromCodePoint('0x' + a.substring(3, a.length - 1));
 							} else {
-								return String.fromCharCode('0x' + a.substr(2));
+								return String.fromCharCode('0x' + a.substring(2));
 							}
 						} else {
 							throw 'bad escape in string';
@@ -343,33 +343,19 @@
 					length: m[0].length
 				};
 			} catch (e) { }
-		} else if (m = this.match(/^(Range|Reference|Syntax|Type|URI|Eval)?Error\(/)) {
+		} else if (m = this.match(/^(?:Range|Reference|Syntax|Type|URI|Eval)?Error\(/)) {
 			l = m[0].length;
-			if (m[1] === 'Range') {
-				m = RangeError;
-			} else if (m[1] === 'Reference') {
-				m = ReferenceError;
-			} else if (m[1] === 'Syntax') {
-				m = SyntaxError;
-			} else if (m[1] === 'Type') {
-				m = TypeError;
-			} else if (m[1] === 'URI') {
-				m = URIError;
-			} else if (m[1] === 'Eval') {
-				m = EvalError;
-			} else {
-				m = Error;
-			}
-			if (this.charAt(l) === ')') {
+			m = globalThis[m[0]];
+			if (this[l] === ')') {
 				r = {
 					value: m(),
 					length: l + 1
 				};
 			} else {
-				let n = this.substr(l).parseJsex();
+				let n = this.substring(l).parseJsex();
 				if (n && typeof n.value === 'string') {
 					l += n.length;
-					if (this.charAt(l) === ')') {
+					if (this[l] === ')') {
 						r = {
 							value: m(n.value),
 							length: l + 1
@@ -389,7 +375,7 @@
 			let t = typeof a;
 			if (['function', 'object'].indexOf(t) >= 0) {
 				t = Object.prototype.toString.call(a);
-				t = t.substr(8, t.length - 9);
+				t = t.substring(8, t.length - 1);
 			}
 			return t;
 		}
