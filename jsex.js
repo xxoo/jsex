@@ -3,26 +3,28 @@
 	const arrays = ['Array', 'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array'],
 		ft = n => n !== 'prototype',
 		strEncode = (str, jsonCompatible) => {
-			return '"' + str.replace(jsonCompatible ? /[\\"\x00-\x1f\ud800-\udfff]/g : /[\n\r\\"]/g, a => {
-				if (a === '\\') {
-					return '\\\\';
-				} else if (a === '"') {
-					return '\\"';
-				} else if (a === '\b') {
-					return '\\b';
-				} else if (a === '\t') {
-					return '\\t';
-				} else if (a === '\n') {
-					return '\\n';
-				} else if (a === '\v') {
-					return '\\v';
-				} else if (a === '\f') {
-					return '\\f';
-				} else if (a === '\r') {
-					return '\\r';
+			return '"' + str.replace(jsonCompatible ? /[\ud800-\udbff][\udc00-\udfff]|[\\"\x00-\x1f\ud800-\udfff]/g : /[\ud800-\udbff][\udc00-\udfff]|[\n\r\\"\ud800-\udfff]/g, a => {
+				if (a.length === 1) {
+					if (a === '\\') {
+						return '\\\\';
+					} else if (a === '"') {
+						return '\\"';
+					} else if (a === '\b') {
+						return '\\b';
+					} else if (a === '\t') {
+						return '\\t';
+					} else if (a === '\n') {
+						return '\\n';
+					} else if (a === '\f') {
+						return '\\f';
+					} else if (a === '\r') {
+						return '\\r';
+					} else {
+						let c = a.charCodeAt(0);
+						return '\\u' + (c < 16 ? '000' : c < 256 ? '00' : c < 4096 ? '0' : '') + c.toString(16);
+					}
 				} else {
-					let c = a.charCodeAt(0);
-					return '\\u' + (c < 16 ? '000' : c < 256 ? '00' : c < 4096 ? '0' : '') + c.toString(16);
+					return a;
 				}
 			}) + '"';
 		},
@@ -345,10 +347,9 @@
 			} catch (e) { }
 		} else if (m = this.match(/^(?:Range|Reference|Syntax|Type|URI|Eval)?Error\(/)) {
 			l = m[0].length;
-			m = globalThis[m[0]];
 			if (this[l] === ')') {
 				r = {
-					value: m(),
+					value: globalThis[m[0]](),
 					length: l + 1
 				};
 			} else {
@@ -357,7 +358,7 @@
 					l += n.length;
 					if (this[l] === ')') {
 						r = {
-							value: m(n.value),
+							value: globalThis[m[0]](n.value),
 							length: l + 1
 						};
 					}
