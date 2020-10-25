@@ -1,7 +1,7 @@
 (() => {
 	'use strict';
 	const arrays = ['Array', 'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array'],
-		ft = n => n !== 'prototype',
+		notproto = n => n !== 'prototype',
 		strEncode = (str, jsonCompatible) => {
 			return '"' + str.replace(jsonCompatible ? /[\ud800-\udbff][\udc00-\udfff]|[\\"\x00-\x1f\ud800-\udfff]/g : /[\ud800-\udbff][\udc00-\udfff]|[\n\r\\"\ud800-\udfff]/g, a => {
 				if (a.length === 1) {
@@ -98,7 +98,7 @@
 							c.push('"__proto__":null');
 						}
 						for (let i = 0; i < n.length; i++) {
-							if (t || ft(n[i])) {
+							if (t || notproto(n[i])) {
 								c.push((!jsonCompatible && n[i] === '__proto__' ? '["__proto__"]' : strEncode(n[i], jsonCompatible)) + ':' + realToJsex(d[n[i]], log, sorting, jsonCompatible));
 							}
 						}
@@ -432,11 +432,11 @@
 				} else {
 					let m = Object.getOwnPropertyNames(o1);
 					if (typeof o1 !== 'function') {
-						m = m.filter(ft);
+						m = m.filter(notproto);
 					}
 					v = Object.getOwnPropertyNames(o2);
 					if (typeof o2 !== 'function') {
-						v = v.filter(ft);
+						v = v.filter(notproto);
 					}
 					if (m.length === v.length) {
 						for (let i = 0; i < m.length; i++) {
