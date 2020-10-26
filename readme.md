@@ -31,9 +31,9 @@ data[Symbol.for('symbolKey')] = 'valueForSymbolKey';
 data.normalKey = 'valueForNormalKey';
 console.log('normal:', toJsex(data), '\nsorted:', toJsex(data, true));
 try {
-	JSON.parse(toJsex(data, false, true));
+  JSON.parse(toJsex(data, false, true));
 } catch(e) {
-	console.log('error: jsonCompatible makes sense only if data does not contain extended types');
+  console.log('error: jsonCompatible makes sense only if data does not contain extended types');
 }
 
 let obj = {
