@@ -1,10 +1,10 @@
 ## What is jsex?
-jsex is an extended JSON format that supports most native javascript data types.
+jsex is an extended JSON format that supports most of native javascript data types.
 
 
 ## How many data types does jsex support?
 As many as possible, including:
-* All types supported in JSON
+* All types supported by JSON
 * bigint
 * symbol
 * Date
@@ -17,9 +17,9 @@ As many as possible, including:
 
 
 ## How to serialize data?
-By calling `toJsex(data, sorting?, jsonCompatible?)`.
-* `sorting`: Whether sorting the content of `Map`, `Set` and `Object`. Defaults to `false`.
-* `jsonCompatible`: Whether generating JSON compatible string. Defaults to `false`.
+By calling `toJsex(data, sorting = false, jsonCompatible = false)`.
+* `sorting`: Whether sorting the content of `Map`, `Set` and `Object`.
+* `jsonCompatible`: Whether generating JSON compatible string.
 ```javascript
 import './jsex.js';
 let data = {};
@@ -29,8 +29,12 @@ data.someSet.add(1);
 data.someSet.add(0n);
 data[Symbol.for('symbolKey')] = 'valueForSymbolKey';
 data.normalKey = 'valueForNormalKey';
-console.log(toJsex(data));
-console.log(toJsex(data, true));
+console.log('normal:', toJsex(data), '\nsorted:', toJsex(data, true));
+try {
+	JSON.parse(toJsex(data, false, true));
+} catch(e) {
+	console.log('error: jsonCompatible makes sense only if data doesn not contain extended types');
+}
 
 let obj = {
     ["__proto__"]: '\v',
@@ -38,11 +42,8 @@ let obj = {
   },
   jsonstr = JSON.stringify(obj),
   jsexstr = toJsex(obj);
-console.log('jsex:', jsexstr);
-console.log('json:', jsonstr);
-console.log(toJsex(obj, false, true) === jsonstr); //true
-JSON.parse(toJsex(data, false, true));
-//Error, jsonCompatible makes sense only if data doesn't contain extended types.
+console.log('jsexstr:', jsexstr, '\njsonstr:', jsonstr);
+console.log('is compatible:', toJsex(obj, false, true) === jsonstr);
 ```
 
 
@@ -54,11 +55,10 @@ let evalJsex = eval('(' + jsexstr + ')'),
   parseJsex = jsexstr.parseJsex().value,
   evalJson = eval('(' + jsonstr + ')'),
   parseJson = JSON.parse(jsonstr),
-  ParseJsonByJsex = jsonstr.parseJsex().value;
-console.log('evalJsex:', evalJsex, 'parseJsex:', parseJsex, 'evalJson:', evalJson, 'parseJson:', parseJson, 'ParseJsonByJsex:', ParseJsonByJsex);
-console.log(isEqual(evalJsex, parseJsex)); //true
-console.log(isEqual(evalJson, parseJson)); //false, JSON is not a subset of javascript
-console.log(isEqual(evalJson, ParseJsonByJsex)); //true
+  parseJsonByJsex = jsonstr.parseJsex().value;
+console.log('evalJsex:', evalJsex, '\nparseJsex:', parseJsex, '\nevalJson:', evalJson, '\nparseJson:', parseJson, '\nparseJsonByJsex:', parseJsonByJsex);
+console.log('is jsex a subset of javascript:', isEqual(evalJsex, parseJsex) && isEqual(evalJson, parseJsonByJsex));
+console.log('is json a subset of javascript:', isEqual(evalJson, parseJson));
 ```
 
 
@@ -69,7 +69,7 @@ Yes, but only for compact JSON strings. Any unnecessary blank space or comments 
 ## Is there any other difference between JSON and jsex?
 Yes, there are a few more differences.
 * `0` and `-0` are different in jsex.
-* `Object` in jsex has no prototype. Which means it is safe to use any key name.
+* `Object` in jsex has no prototype, which means it is safe to use any key name.
 * `toJsex` use `valueOf` rather then `toJSON` to serialize custom data types.
 
 

@@ -345,7 +345,7 @@
 					length: m[0].length
 				};
 			} catch (e) { }
-		} else if (m = this.match(/^(?:Range|Reference|Syntax|Type|URI|Eval)?Error\(/)) {
+		} else if (m = this.match(/^(?:Aggregate|Eval|Range|Reference|Syntax|Type|URI)?Error\(/)) {
 			l = m[0].length;
 			if (this[l] === ')') {
 				r = {
