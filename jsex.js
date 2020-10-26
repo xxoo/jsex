@@ -2,6 +2,14 @@
 	'use strict';
 	const arrays = ['Array', 'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array'],
 		notproto = n => n !== 'prototype',
+		skipblank = str => {
+			let m = str.match(/^(?:[\t\n\r ]*(?:\/\*(?:.|\n)*?\*\/)*(?:\/\/[^\n\r]*)*)*/);
+			if (m) {
+				return m[0].length;
+			} else {
+				return 0;
+			}
+		},
 		strEncode = (str, jsonCompatible) => {
 			return '"' + str.replace(jsonCompatible ? /[\ud800-\udbff][\udc00-\udfff]|[\\"\x00-\x1f\ud800-\udfff]/g : /[\ud800-\udbff][\udc00-\udfff]|[\n\r\\"\ud800-\udfff]/g, a => {
 				if (a.length === 1) {
@@ -119,89 +127,53 @@
 	}
 	//deserialize jsex, support JSON string
 	String.prototype.parseJsex = function () {
-		let m, l, r;
-		if (this.substring(0, l = 4) === 'null') {
+		let m, l, r,
+			p = skipblank(this),
+			str = this.substring(p);
+		if (str.substring(0, l = 4) === 'null') {
 			r = {
 				value: null,
-				length: l
+				length: l + p
 			};
-		} else if (this.substring(0, l = 9) === 'undefined') {
+		} else if (str.substring(0, l = 9) === 'undefined') {
 			r = {
 				value: undefined,
-				length: l
+				length: l + p
 			};
-		} else if (this.substring(0, l = 3) === 'NaN') {
+		} else if (str.substring(0, l = 3) === 'NaN') {
 			r = {
 				value: NaN,
-				length: l
+				length: l + p
 			};
-		} else if (this.substring(0, l = 4) === 'true') {
+		} else if (str.substring(0, l = 4) === 'true') {
 			r = {
 				value: true,
-				length: l
+				length: l + p
 			};
-		} else if (this.substring(0, l = 5) === 'false') {
+		} else if (str.substring(0, l = 5) === 'false') {
 			r = {
 				value: false,
-				length: l
+				length: l + p
 			};
-		} else if (this.substring(0, l = 9) === 'new Date(') {
-			m = this.substring(l).parseJsex();
-			if (m && typeof m.value === 'number' && this[l += m.length] === ')') {
+		} else if (str.substring(0, l = 9) === 'new Date(') {
+			m = str.substring(l).parseJsex();
+			if (m && typeof m.value === 'number' && str[l += m.length] === ')') {
 				r = {
 					value: new Date(m.value),
-					length: l + 1
+					length: l + p + 1
 				};
 			}
-		} else if (this.substring(0, l = 6) === 'Symbol') {
-			if (this[l] === '(') {
-				l += 1;
-				if (this[l] === ')') {
-					r = {
-						value: Symbol(),
-						length: l + 1
-					};
-				} else {
-					m = this.substring(l).parseJsex();
-					if (m && typeof m.value === 'string') {
-						l += m.length;
-						if (this[l] === ')') {
-							r = {
-								value: Symbol(m.value),
-								length: l + 1
-							};
-						}
-					}
-				}
-			} else if (this.substring(l, l + 5) === '.for(') {
-				l += 5;
-				m = this.substring(l).parseJsex();
-				if (m && typeof m.value === 'string') {
-					l += m.length;
-					if (this[l] === ')') {
-						r = {
-							value: Symbol.for(m.value),
-							length: l + 1
-						};
-					}
-				}
-			} else if ((m = this.substring(l).match(/^\.(\w+)/)) && typeof Symbol[m[1]] === 'symbol') {
-				r = {
-					value: Symbol[m[1]],
-					length: l + m[0].length
-				};
-			}
-		} else if (this.substring(0, l = 8) === 'new Set(') {
-			m = this.substring(l).parseJsex();
-			if (m && Array.isArray(m.value) && this[l += m.length] === ')') {
+		} else if (str.substring(0, l = 8) === 'new Set(') {
+			m = str.substring(l).parseJsex();
+			if (m && Array.isArray(m.value) && str[l += m.length] === ')') {
 				r = {
 					value: new Set(m.value),
-					length: l + 1
+					length: l + p + 1
 				};
 			}
-		} else if (this.substring(0, l = 8) === 'new Map(') {
-			m = this.substring(l).parseJsex();
-			if (m && Array.isArray(m.value) && this[l += m.length] === ')') {
+		} else if (str.substring(0, l = 8) === 'new Map(') {
+			m = str.substring(l).parseJsex();
+			if (m && Array.isArray(m.value) && str[l += m.length] === ')') {
 				for (let i = 0; i < m.value.length; i++) {
 					if (!Array.isArray(m.value[i]) || m.value[i].length !== 2) {
 						m.e = true;
@@ -211,11 +183,49 @@
 				if (!m.e) {
 					r = {
 						value: new Map(m.value),
-						length: l + 1
+						length: l + p + 1
 					};
 				}
 			}
-		} else if (this[0] === '[') {
+		} else if (str.substring(0, l = 6) === 'Symbol') {
+			if (str[l] === '(') {
+				l += 1;
+				if (str[l] === ')') {
+					r = {
+						value: Symbol(),
+						length: l + p + 1
+					};
+				} else {
+					m = str.substring(l).parseJsex();
+					if (m && typeof m.value === 'string') {
+						l += m.length;
+						if (str[l] === ')') {
+							r = {
+								value: Symbol(m.value),
+								length: l + p + 1
+							};
+						}
+					}
+				}
+			} else if (str.substring(l, l + 5) === '.for(') {
+				l += 5;
+				m = str.substring(l).parseJsex();
+				if (m && typeof m.value === 'string') {
+					l += m.length;
+					if (str[l] === ')') {
+						r = {
+							value: Symbol.for(m.value),
+							length: l + p + 1
+						};
+					}
+				}
+			} else if ((m = str.substring(l).match(/^\.(\w+)/)) && typeof Symbol[m[1]] === 'symbol') {
+				r = {
+					value: Symbol[m[1]],
+					length: l + p + m[0].length
+				};
+			}
+		} else if (str[0] === '[') {
 			let mf,
 				ml = true,
 				me = true,
@@ -223,18 +233,19 @@
 				mn = false;
 			m = [];
 			l = 1;
-			while (!(mn || (me && this[l] === ']'))) {
+			while (!(mn || (me && str[l] === ']'))) {
 				if (mq) {
-					if (this[l] === ',') {
+					if (str[l] === ',') {
 						l += 1;
 						ml = true;
 						me = mq = false;
 						continue;
 					}
 				} else if (ml) {
-					mf = this.substring(l).parseJsex();
+					mf = str.substring(l).parseJsex();
 					if (mf) {
 						l += mf.length;
+						l += skipblank(str.substring(l));
 						m.push(mf.value);
 						ml = false;
 						me = mq = true;
@@ -246,10 +257,10 @@
 			if (!mn) {
 				r = {
 					value: m,
-					length: l + 1
+					length: l + p + 1
 				};
 			}
-		} else if (this[0] === '{') {
+		} else if (str[0] === '{') {
 			let mf, mm,
 				ml = true,
 				me = true,
@@ -257,24 +268,26 @@
 				mn = false;
 			m = Object.create(null);
 			l = 1;
-			while (!(mn || (me && this[l] === '}'))) {
+			while (!(mn || (me && str[l] === '}'))) {
 				if (mq) {
-					if (this[l] === ',') {
+					if (str[l] === ',') {
 						l += 1;
 						ml = true;
 						me = mq = false;
 						continue;
 					}
 				} else if (ml) {
-					mf = this.substring(l).parseJsex();
+					mf = str.substring(l).parseJsex();
 					if (mf && (mm = typeof mf.value === 'string') || (Array.isArray(mf.value) && mf.value.length === 1 && ['symbol', 'string'].indexOf(typeof mf.value[0]) >= 0)) {
 						l += mf.length;
+						l += skipblank(str.substring(l));
 						mm = mm ? mf.value === '__proto__' ? null : mf.value : mf.value[0];
-						if (this[l] === ':') {
+						if (str[l] === ':') {
 							l += 1;
-							mf = this.substring(l).parseJsex();
+							mf = str.substring(l).parseJsex();
 							if (mf) {
 								l += mf.length;
+								l += skipblank(str.substring(l));
 								if (mm !== null) {
 									m[mm] = mf.value;
 								}
@@ -290,20 +303,20 @@
 			if (!mn) {
 				r = {
 					value: m,
-					length: l + 1
+					length: l + p + 1
 				};
 			}
-		} else if (m = this.match(/^(-?)([1-9]\d*|0(?:[bB][01]+|[oO][0-7]+|[xX][0-fA-F]+)?)n/)) {
+		} else if (m = str.match(/^(-?)([1-9]\d*|0(?:[bB][01]+|[oO][0-7]+|[xX][0-fA-F]+)?)n/)) {
 			r = {
 				value: m[1] ? -BigInt(m[2]) : BigInt(m[2]),
-				length: m[0].length
+				length: m[0].length + p
 			};
-		} else if (m = this.match(/^(-?)(Infinity|0(?:[bB][01]+|[oO][0-7]+|[xX][0-fA-F]+)|[1-9](?:\.\d+)?[eE][-+]?[1-9]\d*|(?:[1-9]\d*|0)(?:\.\d+)?)/)) {
+		} else if (m = str.match(/^(-?)(Infinity|0(?:[bB][01]+|[oO][0-7]+|[xX][0-fA-F]+)|[1-9](?:\.\d+)?[eE][-+]?[1-9]\d*|(?:[1-9]\d*|0)(?:\.\d+)?)/)) {
 			r = {
 				value: m[1] ? -m[2] : +m[2],
-				length: m[0].length
+				length: m[0].length + p
 			};
-		} else if (m = this.match(/^"(?:(?:[^\n\r"]|\\")*?[^\n\r\\])??(?:\\\\)*"/)) {
+		} else if (m = str.match(/^"(?:(?:[^\n\r"]|\\")*?[^\n\r\\])??(?:\\\\)*"/)) {
 			try {
 				r = {
 					value: m[0].replace(/^"|"$|\\[\\btnvfr"]|\\x[0-fA-F]{2}|\\u([0-fA-F]{4}|\{[0-fA-F]{1,5}\})|\\/g, a => {
@@ -335,31 +348,31 @@
 							throw 'bad escape in string';
 						}
 					}),
-					length: m[0].length
+					length: m[0].length + p
 				};
 			} catch (e) { }
-		} else if (m = this.match(/^\/((?:\\\\)+|(?:[^\\\/]|[^\/][^\n\r]*?[^\n\r\\])(?:\\\\)*)\/(g?i?m?s?u?y?)/)) {
+		} else if (m = str.match(/^\/((?:\\\\)+|(?:[^\\\/]|[^\/][^\n\r]*?[^\n\r\\])(?:\\\\)*)\/(g?i?m?s?u?y?)/)) {
 			try {
 				r = {
 					value: RegExp(m[1], m[2]),
-					length: m[0].length
+					length: m[0].length + p
 				};
 			} catch (e) { }
-		} else if (m = this.match(/^(?:Aggregate|Eval|Range|Reference|Syntax|Type|URI)?Error\(/)) {
+		} else if (m = str.match(/^(?:Aggregate|Eval|Range|Reference|Syntax|Type|URI)?Error\(/)) {
 			l = m[0].length;
-			if (this[l] === ')') {
+			if (str[l] === ')') {
 				r = {
 					value: globalThis[m[0]](),
-					length: l + 1
+					length: l + p + 1
 				};
 			} else {
-				let n = this.substring(l).parseJsex();
+				let n = str.substring(l).parseJsex();
 				if (n && typeof n.value === 'string') {
 					l += n.length;
-					if (this[l] === ')') {
+					if (str[l] === ')') {
 						r = {
 							value: globalThis[m[0]](n.value),
-							length: l + 1
+							length: l + p + 1
 						};
 					}
 				}

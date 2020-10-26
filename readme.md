@@ -1,5 +1,5 @@
 ## What is jsex?
-jsex is an extended JSON format that supports most of native javascript data types.
+jsex is an extended JSON format which supports most of native javascript data types.
 
 
 ## How many data types does jsex support?
@@ -33,7 +33,7 @@ console.log('normal:', toJsex(data), '\nsorted:', toJsex(data, true));
 try {
 	JSON.parse(toJsex(data, false, true));
 } catch(e) {
-	console.log('error: jsonCompatible makes sense only if data doesn not contain extended types');
+	console.log('error: jsonCompatible makes sense only if data does not contain extended types');
 }
 
 let obj = {
@@ -63,7 +63,11 @@ console.log('is json a subset of javascript:', isEqual(evalJson, parseJson));
 
 
 ## Does `parseJsex` support JSON string?
-Yes, but only for compact JSON strings. Any unnecessary blank space or comments may cause failing.
+Yes, but any `__proto__` key of `Object` in JSON string will be ignored.
+
+
+## May I use comments in jsex?
+Yes, comments are allowed. But not on everywhere. Such as `new/*test*/Date(/*test*/1234556789012)` is illegal.
 
 
 ## Is there any other difference between JSON and jsex?
@@ -74,4 +78,4 @@ Yes, there are a few more differences.
 
 
 ## When should I use jsex?
-When you are using javascript, and JSON is not good enough for you.
+When you are using javascript, and JSON can not fit your needs.
