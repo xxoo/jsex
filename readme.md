@@ -67,7 +67,7 @@ Yes, but any `__proto__` key of `Object` in JSON string will be ignored.
 
 
 ## May I use comments in jsex?
-Yes, comments are allowed. But not on everywhere. Such as `new/*test*/Date(/*test*/1234556789012)` is illegal.
+Yes, comments are allowed. But not on everywhere. Such as `-/*123*/4` is invalid in jsex.
 
 
 ## Is there any other difference between JSON and jsex?
