@@ -572,7 +572,7 @@
 						return toJsex(o1) === toJsex(o2);
 					}
 				}
-			} else if (t1 < 0) {
+			} else if (t1 < 0 && t2 < 0) {
 				if (arrays.indexOf(d1) >= 0) {
 					if (arrays.indexOf(d2) >= 0 && o1.length === o2.length) {
 						for (let i = 0; i < o1.length; i++) {
