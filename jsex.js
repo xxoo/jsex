@@ -1,9 +1,56 @@
 (() => {
 	'use strict';
 	const arrays = ['Array', 'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array'],
-		notproto = n => n !== 'prototype',
+		AsyncFunction = (async () => { }).constructor,
+		GeneratorFunction = (function* () { }).constructor,
+		AsyncGeneratorFunction = (async function* () { }).constructor,
+		strexp = /^"(?:(?:[^\n\r"]|\\")*?[^\n\r\\])??(?:\\\\)*"/,
+		seekend = (s) => {
+			let m, i = 0;
+			while (s[i] !== '}' && i < s.length) {
+				if (s[i] === '/') {
+					m = s.substring(i).match(/^(?:(?:\/\*(?:.|\n)*?\*\/)|(?:\/\/[^\n\r]*)|\/(?:(?:\\\\)+|(?:[^\\\/]|[^\/][^\n\r]*?[^\n\r\\])(?:\\\\)*)\/)/);
+					if (m) {
+						i += m[0].length;
+					} else {
+						break;
+					}
+				} else if (s[i] === '"') {
+					m = s.substring(i).match(strexp);
+					if (m) {
+						i += m[0].length;
+					} else {
+						break;
+					}
+				} else if (s[i] === '\'') {
+					m = s.substring(i).match(/^'(?:(?:[^\n\r']|\\')*?[^\n\r\\])??(?:\\\\)*'/);
+					if (m) {
+						i += m[0].length;
+					} else {
+						break;
+					}
+				} else if (s[i] === '`') {
+					m = s.substring(i).match(/^`(?:(?:[^`]|\\`)*?[^\\])??(?:\\\\)*`/);
+					if (m) {
+						i += m[0].length;
+					} else {
+						break;
+					}
+				} else if (s[i] === '{') {
+					m = seekend(s.substring(i + 1));
+					if (s[i + m + 1] === '}') {
+						i += m + 2;
+					} else {
+						break;
+					}
+				} else {
+					i++;
+				}
+			}
+			return i;
+		},
 		skipblank = str => {
-			let m = str.match(/^(?:[\t\n\r ]*(?:\/\*(?:.|\n)*?\*\/)*(?:\/\/[^\n\r]*)*)*/);
+			let m = str.match(/^(?:[\t\n\r ]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*/);
 			if (m) {
 				return m[0].length;
 			} else {
@@ -68,12 +115,88 @@
 				} else if (t === 'Date') {
 					s = 'new Date(' + d.getTime() + ')';
 				} else if (t === 'Error') {
-					s = ['RangeError', 'ReferenceError', 'SyntaxError', 'TypeError', 'URIError', 'EvalError'].indexOf(d.name) < 0 ? 'Error' : d.name;
+					s = ['AggregateError', 'EvalError', 'RangeError', 'ReferenceError', 'SyntaxError', 'TypeError', 'URIError'].indexOf(d.name) < 0 ? 'Error' : d.name;
 					s += '(';
 					if (d.message) {
 						s += strEncode(d.message);
 					}
 					s += ')';
+				} else if (['Function', 'AsyncFunction', 'GeneratorFunction', 'AsyncGeneratorFunction'].indexOf(t) >= 0) {
+					s = d.toString();
+					if (/\{[\t\n\r ]*\[native code\][\t\n\r ]*\}$/.test(s)) {
+						throw TypeError('unable to serialize native function');
+					} else {
+						const r = /^\{[\t\n\r ]*|[\t\n\r ]*\}$/g,
+							getParam = () => {
+								let i = 1;
+								while (s[i] !== ')') {
+									if (s[i] === '/') {
+										i += s.substring(i).match(/^(?:(?:\/\*(?:.|\n)*?\*\/)*(?:\/\/[^\n\r]*)*)*/)[0].length;
+									} else {
+										if (['\t', '\n', '\r', ' '].indexOf(s[i]) < 0) {
+											p += s[i];
+										}
+										i++;
+									}
+								}
+								return i + 1;
+							},
+							combineParam = () => {
+								if (p) {
+									s = s.replace(/^(?:[\t\n\r ]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*(?:(?:'use [a-z]+'|"use [a-z]+")[\t ]*[\n\r ;]+)?/, '$&let [' + p + ']=arguments;');
+								}
+							};
+						let p = '';
+						if (t === 'GeneratorFunction') {
+							s = s.substring(8).replace(/^(?:[\t\n\r ]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*\*(?:[\t\n\r ]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*(?:[a-zA-Z_][a-zA-Z_0-9]*)?(?:[\t\n\r ]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*/, '');
+							s = s.substring(getParam());
+							s = s.substring(skipblank(s)).replace(r, '');
+							combineParam();
+							s = 'function*(){' + s + '}';
+						} else if (t === 'AsyncGeneratorFunction') {
+							s = s.substring(5).replace(/^(?:[\t\n\r ]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)+function(?:[\t\n\r ]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*\*(?:[\t\n\r ]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*(?:[a-zA-Z_][a-zA-Z_0-9]*)?(?:[\t\n\r ]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*/, '');
+							s = s.substring(getParam());
+							s = s.substring(skipblank(s)).replace(r, '');
+							combineParam();
+							s = 'async function*(){' + s + '}';
+						} else if (s.substring(0, 5) === 'class') {
+							s = s.substring(5);
+							s = s.substring(skipblank(s));
+							if (/^(?:[a-zA-Z_][a-zA-Z_0-9]*)?(?:[\t\n\r ]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*extends(?:[\t\n\r ]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*/.test(s)) {
+								throw TypeError('extended class is forbidden');
+							} else {
+								s = 'class{' + s.replace(/^(?:[a-zA-Z_][a-zA-Z_0-9]*)?(?:[\t\n\r ]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*{[\t\n\r ]*|[\t\n\r ]*\}$/g, '') + '}';
+							}
+						} else {
+							let h;
+							if (t === 'AsyncFunction') {
+								s = s.substring(5).replace(/^(?:[\t\n\r ]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*/, '');
+								h = 'async function(){';
+							} else {
+								h = 'function(){';
+							}
+							if (s.substring(0, 8) === 'function') {
+								s = s.substring(8).replace(/^(?:[\t\n\r ]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*(?:[a-zA-Z_][a-zA-Z_0-9]*)?(?:[\t\n\r ]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*/, '');
+								s = s.substring(getParam());
+								s = s.substring(skipblank(s));
+							} else {
+								if (s[0] === '(') {
+									s = s.substring(getParam()).replace(/^(?:[\t\n\r ]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*=>(?:[\t\n\r ]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*/, '');
+								} else {
+									let m = s.match(/^([a-zA-Z_][a-zA-Z_0-9]*)(?:[\t\n\r ]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*=>(?:[\t\n\r ]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*/);
+									p = m[1];
+									s = s.substring(m[0].length);
+								}
+								if (s[0] !== '{') {
+									s = 'return ' + s;
+								} else {
+									s = s.replace(r, '');
+								}
+							}
+							combineParam();
+							s = h + s + '}';
+						}
+					}
 				} else if (log.has(d)) {
 					throw TypeError('circular structure detected');
 				} else {
@@ -101,14 +224,11 @@
 					} else {
 						let c = [],
 							n = Object.getOwnPropertyNames(d);
-						t = typeof d !== 'function';
 						if (!jsonCompatible) {
 							c.push('"__proto__":null');
 						}
 						for (let i = 0; i < n.length; i++) {
-							if (t || notproto(n[i])) {
-								c.push((!jsonCompatible && n[i] === '__proto__' ? '["__proto__"]' : strEncode(n[i], jsonCompatible)) + ':' + realToJsex(d[n[i]], log, sorting, jsonCompatible));
-							}
+							c.push((!jsonCompatible && n[i] === '__proto__' ? '["__proto__"]' : strEncode(n[i], jsonCompatible)) + ':' + realToJsex(d[n[i]], log, sorting, jsonCompatible));
 						}
 						n = Object.getOwnPropertySymbols(d).map(v => '[' + realToJsex(v) + ']:' + realToJsex(d[v], log, sorting, jsonCompatible));
 						if (sorting) {
@@ -316,7 +436,7 @@
 				value: m[1] ? -m[2] : +m[2],
 				length: m[0].length + p
 			};
-		} else if (m = str.match(/^"(?:(?:[^\n\r"]|\\")*?[^\n\r\\])??(?:\\\\)*"/)) {
+		} else if (m = str.match(strexp)) {
 			try {
 				r = {
 					value: m[0].replace(/^"|"$|\\[\\btnvfr"]|\\x[0-fA-F]{2}|\\u([0-fA-F]{4}|\{[0-fA-F]{1,5}\})|\\/g, a => {
@@ -377,6 +497,22 @@
 					}
 				}
 			}
+		} else if (m = str.match(/class ?{/)) {
+			l = seekend(str.substring(m[0].length)) + m[0].length;
+			if (str[l] === '}') {
+				r = {
+					value: Function('return ' + str.substring(0, l))(),
+					length: l + 1
+				};
+			}
+		} else if (m = str.match(/^(async )?function ?(\*)? ?\(\) ?\{/)) {
+			l = seekend(str.substring(m[0].length)) + m[0].length;
+			if (str[l] === '}') {
+				r = {
+					value: (m[1] && m[2] ? AsyncGeneratorFunction : m[1] ? AsyncFunction : m[2] ? GeneratorFunction : Function)(str.substring(m[0].length, l)),
+					length: l + 1
+				};
+			}
 		}
 		return r;
 	};
@@ -404,7 +540,7 @@
 		if (Object.is(o1, o2)) {
 			return true;
 		} else {
-			const types = ['undefined', 'null', 'boolean', 'string', 'number', 'bigint', 'symbol', 'Date', 'RegExp', 'Error', 'Map', 'Set'],
+			const types = ['undefined', 'null', 'boolean', 'string', 'number', 'bigint', 'symbol', 'Date', 'RegExp', 'Error', 'Function', 'AsyncFunction', 'GeneratorFunction', 'AsyncGeneratorFunction', 'Map', 'Set'],
 				d1 = dataType(o1),
 				d2 = dataType(o2),
 				t1 = types.indexOf(d1),
@@ -416,7 +552,7 @@
 				return isEqual(o1, v);
 			} else if (t1 > 5) {
 				if (t1 === t2) {
-					if (t1 > 9) {
+					if (t1 > 13) {
 						if (o1.size === o2.size) {
 							let m = [];
 							for (let n of o1) {
@@ -428,6 +564,10 @@
 							}
 							return isEqual(m.sort(), v.sort());
 						}
+					} else if (t1 > 9) {
+						try {
+							return toJsex(o1) === toJsex(o2);
+						} catch (e) { }
 					} else {
 						return toJsex(o1) === toJsex(o2);
 					}
@@ -444,13 +584,7 @@
 					}
 				} else {
 					let m = Object.getOwnPropertyNames(o1);
-					if (typeof o1 !== 'function') {
-						m = m.filter(notproto);
-					}
 					v = Object.getOwnPropertyNames(o2);
-					if (typeof o2 !== 'function') {
-						v = v.filter(notproto);
-					}
 					if (m.length === v.length) {
 						for (let i = 0; i < m.length; i++) {
 							if (!Object.prototype.hasOwnProperty.call(o2, m[i]) || !isEqual(o1[m[i]], o2[m[i]])) {

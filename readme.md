@@ -5,6 +5,8 @@ jsex is an extended JSON format which supports most of native javascript data ty
 ## How many data types does jsex support?
 As many as possible, including:
 * All types supported by JSON
+* function
+* class (without using `extends` keyword)
 * bigint
 * symbol
 * Date
@@ -51,9 +53,9 @@ console.log('is compatible:', toJsex(obj, false, true) === jsonstr);
 Basically you can just `eval` the string if you trust the source. However if you don't, use `String.prototype.parseJsex()` instead. This method returns `undefined` if parsing failed, or an `Object` with a `length` key (to store the count of characters parsed in this string) and a `value` key (to store the real result).
 ```javascript
 //following the above code
-let evalJsex = eval('(' + jsexstr + ')'),
+let evalJsex = Function('return ' + jsexstr)(),
   parseJsex = jsexstr.parseJsex().value,
-  evalJson = eval('(' + jsonstr + ')'),
+  evalJson = Function('return ' + jsonstr)(),
   parseJson = JSON.parse(jsonstr),
   parseJsonByJsex = jsonstr.parseJsex().value;
 console.log('evalJsex:', evalJsex, '\nparseJsex:', parseJsex, '\nevalJson:', evalJson, '\nparseJson:', parseJson, '\nparseJsonByJsex:', parseJsonByJsex);
