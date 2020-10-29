@@ -76,6 +76,7 @@ Yes, comments are allowed. But not on everywhere. Such as `-/*123*/4` is invalid
 Yes, there are a few more differences.
 * `0` and `-0` are different in jsex.
 * `Object` in jsex has no prototype, which means it is safe to use any key name.
+* `toJsex` does not skip unenumerable keys and symbol keys in `Object`.
 * `toJsex` use `valueOf` rather then `toJSON` to serialize custom data types.
 
 
