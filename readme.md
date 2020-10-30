@@ -6,7 +6,6 @@ jsex is an extended JSON format which supports most of native javascript data ty
 As many as possible, including:
 * All types supported by JSON
 * function
-* class (without using `extends` keyword)
 * bigint
 * symbol
 * Date
@@ -19,9 +18,10 @@ As many as possible, including:
 
 
 ## How to serialize data?
-By calling `toJsex(data, sorting = false, jsonCompatible = false)`.
+By calling `toJsex(data, sorting = false, jsonCompatible = false, debug = false)`.
 * `sorting`: Whether sorting the content of `Map`, `Set` and `Object`.
 * `jsonCompatible`: Whether generating JSON compatible string.
+* `debug`: Whether throw error when meet unexpected data
 ```javascript
 import './jsex.js';
 let data = {};
