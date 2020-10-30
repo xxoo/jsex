@@ -79,7 +79,7 @@
 						if (dbg) {
 							throw TypeError('unable to serialize class');
 						}
-					} else if (/\{[\t \n\r]*\[native code\][\t \n\r]*\}$/.test(v)) {
+					} else if (/\{[\t \n\r]*\[[a-zA-Z]+(?: [a-zA-Z]+)+\][\t \n\r]*\}$/.test(v)) {
 						if (dbg) {
 							throw TypeError('unable to serialize native function');
 						}
@@ -195,7 +195,7 @@
 						for (let i = 0; i < m.length; i++) {
 							let v = realToJsex(d[m[i]], log, sorting, jsonCompatible, dbg);
 							if (v !== undefined) {
-								n.push('[' + realToJsex(v) + ']:' + v);
+								n.push('[' + realToJsex(m[i]) + ']:' + v);
 							}
 						}
 						if (sorting) {
