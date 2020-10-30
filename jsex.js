@@ -454,7 +454,7 @@
 			l = m[0].length;
 			if (str[l] === ')') {
 				r = {
-					value: globalThis[m[0]](),
+					value: globalThis[m[1]](),
 					length: l + p + 1
 				};
 			} else {
