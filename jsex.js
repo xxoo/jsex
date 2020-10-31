@@ -1,3 +1,5 @@
+//jsex version: 1.0.1
+//https://github.com/xxoo/jsex
 (() => {
 	'use strict';
 	const arrays = ['Array', 'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array'],
@@ -604,7 +606,7 @@
 					v = Object.getOwnPropertyNames(o2);
 					if (m.length === v.length) {
 						for (let i = 0; i < m.length; i++) {
-							if (!Object.prototype.hasOwnProperty.call(o2, m[i]) || !isEqual(o1[m[i]], o2[m[i]])) {
+							if (!hasOwnProperty.call(o2, m[i]) || !isEqual(o1[m[i]], o2[m[i]])) {
 								return false;
 							}
 						}

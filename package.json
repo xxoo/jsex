@@ -1,0 +1,20 @@
+{
+	"name": "jsex",
+	"version": "1.0.1",
+	"description": "jsex is an extended JSON data format",
+	"main": "jsex.js",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/xxoo/jsex.git"
+	},
+	"keywords": [
+		"serialization",
+		"deserialization",
+		"JSON",
+		"data",
+		"function"
+	],
+	"author": "Xiao Shen",
+	"license": "MIT",
+	"readmeFilename": "readme.md"
+}
