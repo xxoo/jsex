@@ -1,8 +1,8 @@
 (() => {
 	'use strict';
 	const arrays = ['Array', 'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array'],
-		skipblank = str => {
-			let m = str.match(/^(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*/);
+		blanklength = str => {
+			let m = str.match(/^(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*/);
 			if (m) {
 				return m[0].length;
 			} else {
@@ -84,12 +84,13 @@
 							throw TypeError('unable to serialize native function');
 						}
 					} else {
+						let p = '';
 						const r = /^\{[\t \n\r]*|[\t \n\r]*\}$/g,
-							getParam = () => {
+							paramlength = () => {
 								let i = 1;
 								while (v[i] !== ')') {
 									if (v[i] === '/') {
-										i += v.substring(i).match(/^(?:(?:\/\*(?:.|\n)*?\*\/)*(?:\/\/[^\n\r]*)*)*/)[0].length;
+										i += v.substring(i).match(/^(?:(?:\/\*(?:[^*]|\*(?!\/))*\*\/)*(?:\/\/[^\n\r]*)*)*/)[0].length;
 									} else {
 										if ('\t \n\r'.indexOf(v[i]) < 0) {
 											p += v[i];
@@ -99,28 +100,28 @@
 								}
 								return i + 1;
 							};
-						let p = '';
 						if (t === 'GeneratorFunction') {
-							v = v.substring(8).replace(/^(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*\*(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*(?:[A-Za-z_$][0-9A-Za-z_$]*)?(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*/, '');
-							v = v.substring(getParam());
-							v = v.substring(skipblank(v)).replace(r, '');
+							v = v.substring(8).replace(/^(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*\*(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*(?:[A-Za-z_$][0-9A-Za-z_$]*)?(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*/, '');
+							v = v.substring(paramlength());
+							v = v.substring(blanklength(v)).replace(r, '');
 						} else if (t === 'AsyncGeneratorFunction') {
-							v = v.substring(5).replace(/^(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)+function(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*\*(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*(?:[A-Za-z_$][0-9A-Za-z_$]*)?(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*/, '');
-							v = v.substring(getParam());
-							v = v.substring(skipblank(v)).replace(r, '');
+							v = v.substring(5).replace(/^(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)+function(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*\*(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*(?:[A-Za-z_$][0-9A-Za-z_$]*)?(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*/, '');
+							v = v.substring(paramlength());
+							v = v.substring(blanklength(v)).replace(r, '');
 						} else {
 							if (t === 'AsyncFunction') {
-								v = v.substring(5).replace(/^(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*/, '');
+								v = v.substring(5);
+								v = v.substring(blanklength(v));
 							}
 							if (v.substring(0, 8) === 'function') {
-								v = v.substring(8).replace(/^(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*(?:[A-Za-z_$][0-9A-Za-z_$]*)?(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*/, '');
-								v = v.substring(getParam());
-								v = v.substring(skipblank(v)).replace(r, '');
+								v = v.substring(8).replace(/^(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*(?:[A-Za-z_$][0-9A-Za-z_$]*)?(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*/, '');
+								v = v.substring(paramlength());
+								v = v.substring(blanklength(v)).replace(r, '');
 							} else {
 								if (v[0] === '(') {
-									v = v.substring(getParam()).replace(/^(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*=>(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*/, '');
+									v = v.substring(paramlength()).replace(/^(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*=>(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*/, '');
 								} else {
-									let m = v.match(/^([A-Za-z_$][0-9A-Za-z_$]*)(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*=>(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*/);
+									let m = v.match(/^([A-Za-z_$][0-9A-Za-z_$]*)(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*=>(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*/);
 									p = m[1];
 									v = v.substring(m[0].length);
 								}
@@ -132,7 +133,8 @@
 							}
 						}
 						if (p) {
-							v = v.replace(/^(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*(?:(?:'use [a-z]+'|"use [a-z]+")[\t ]*[\n\r ;]+)?/, '$&let [' + p + ']=arguments;');
+							let m = v.match(/^(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*(?:(?:'use [a-z]+'|"use [a-z]+")(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*;)?/);
+							v = `${v.substring(0, m[0].length)}let [${p}]=arguments;${v.substring(m[0].length)}`;
 						}
 						s = `${t}(${v ? strEncode(v) : ''})`;
 					}
@@ -213,14 +215,14 @@
 	if (typeof globalThis === 'undefined') {
 		self.globalThis = self;
 	}
-	//we need to make these type definitions global
-	globalThis.AsyncFunction = (async () => { }).constructor;
-	globalThis.GeneratorFunction = (function* () { }).constructor;
-	globalThis.AsyncGeneratorFunction = (async function* () { }).constructor;
+	//we need to make these constructors global
+	globalThis.AsyncFunction = async function () { }.constructor;
+	globalThis.GeneratorFunction = function* () { }.constructor;
+	globalThis.AsyncGeneratorFunction = async function* () { }.constructor;
 	//deserialize jsex, support JSON string
 	String.prototype.parseJsex = function () {
 		let m, l, r,
-			p = skipblank(this),
+			p = blanklength(this),
 			str = this.substring(p);
 		if (str.substring(0, l = 4) === 'null') {
 			r = {
@@ -353,7 +355,7 @@
 					mf = str.substring(l).parseJsex();
 					if (mf) {
 						l += mf.length;
-						l += skipblank(str.substring(l));
+						l += blanklength(str.substring(l));
 						m.push(mf.value);
 						ml = false;
 						me = mq = true;
@@ -388,14 +390,14 @@
 					mf = str.substring(l).parseJsex();
 					if (mf && (mm = typeof mf.value === 'string') || (Array.isArray(mf.value) && mf.value.length === 1 && ['symbol', 'string'].indexOf(typeof mf.value[0]) >= 0)) {
 						l += mf.length;
-						l += skipblank(str.substring(l));
+						l += blanklength(str.substring(l));
 						mm = mm ? mf.value === '__proto__' ? null : mf.value : mf.value[0];
 						if (str[l] === ':') {
 							l += 1;
 							mf = str.substring(l).parseJsex();
 							if (mf) {
 								l += mf.length;
-								l += skipblank(str.substring(l));
+								l += blanklength(str.substring(l));
 								if (mm !== null) {
 									m[mm] = mf.value;
 								}
@@ -427,7 +429,7 @@
 		} else if (m = str.match(/^"((?:[^\n\r"\\]|\\(?:\r\n?|[^\r]))*)"/)) {
 			try {
 				r = {
-					value: m[1].replace(/\\(?:([0-7]{1,2})|x([0-9A-Fa-f]{2})|u(?:([0-9A-Fa-f]{4})|\{([0-9A-Fa-f]{1,5})\})|(\r\n?|\n)|([^\n\r]))/g, (a, p1, p2, p3, p4, p5, p6) => {
+					value: m[1].replace(/\\(?:([0-7]{1,2})|x([0-9A-Fa-f]{2})|u(?:([0-9A-Fa-f]{4})|\{([0-9A-Fa-f]{1,5})\})|(\r\n?|\n)|([^\n\r]))/g, (p0, p1, p2, p3, p4, p5, p6) => {
 						if (p1) {
 							return String.fromCharCode('0o' + p1);
 						} else if (p2 || p3) {
@@ -488,13 +490,13 @@
 	};
 	//reference types are the names of their constructor, such as String, Uint8Array, AsyncFunction
 	//primitive types are lowercased, such as string, bigint, null
-	globalThis.dataType = a => {
-		if (a == null) {
-			return String(a);
+	globalThis.dataType = data => {
+		if (data == null) {
+			return String(data);
 		} else {
-			let t = typeof a;
+			let t = typeof data;
 			if (['function', 'object'].indexOf(t) >= 0) {
-				t = Object.prototype.toString.call(a);
+				t = Object.prototype.toString.call(data);
 				t = t.substring(8, t.length - 1);
 			}
 			return t;
