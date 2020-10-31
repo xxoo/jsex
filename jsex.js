@@ -79,7 +79,7 @@
 						if (dbg) {
 							throw TypeError('unable to serialize class');
 						}
-					} else if (/\{[\t \n\r]*\[[a-zA-Z]+(?: [a-zA-Z]+)+\][\t \n\r]*\}$/.test(v)) {
+					} else if (/\{[\t \n\r]*\[\w+(?: \w+)+\][\t \n\r]*\}$/.test(v)) {
 						if (dbg) {
 							throw TypeError('unable to serialize native function');
 						}
@@ -91,7 +91,7 @@
 									if (v[i] === '/') {
 										i += v.substring(i).match(/^(?:(?:\/\*(?:.|\n)*?\*\/)*(?:\/\/[^\n\r]*)*)*/)[0].length;
 									} else {
-										if (['\t', '\n', '\r', ' '].indexOf(v[i]) < 0) {
+										if ('\t \n\r'.indexOf(v[i]) < 0) {
 											p += v[i];
 										}
 										i++;
@@ -101,11 +101,11 @@
 							};
 						let p = '';
 						if (t === 'GeneratorFunction') {
-							v = v.substring(8).replace(/^(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*\*(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*(?:[a-zA-Z_][a-zA-Z_0-9]*)?(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*/, '');
+							v = v.substring(8).replace(/^(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*\*(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*(?:[A-Za-z_$][0-9A-Za-z_$]*)?(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*/, '');
 							v = v.substring(getParam());
 							v = v.substring(skipblank(v)).replace(r, '');
 						} else if (t === 'AsyncGeneratorFunction') {
-							v = v.substring(5).replace(/^(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)+function(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*\*(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*(?:[a-zA-Z_][a-zA-Z_0-9]*)?(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*/, '');
+							v = v.substring(5).replace(/^(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)+function(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*\*(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*(?:[A-Za-z_$][0-9A-Za-z_$]*)?(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*/, '');
 							v = v.substring(getParam());
 							v = v.substring(skipblank(v)).replace(r, '');
 						} else {
@@ -113,14 +113,14 @@
 								v = v.substring(5).replace(/^(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*/, '');
 							}
 							if (v.substring(0, 8) === 'function') {
-								v = v.substring(8).replace(/^(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*(?:[a-zA-Z_][a-zA-Z_0-9]*)?(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*/, '');
+								v = v.substring(8).replace(/^(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*(?:[A-Za-z_$][0-9A-Za-z_$]*)?(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*/, '');
 								v = v.substring(getParam());
 								v = v.substring(skipblank(v)).replace(r, '');
 							} else {
 								if (v[0] === '(') {
 									v = v.substring(getParam()).replace(/^(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*=>(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*/, '');
 								} else {
-									let m = v.match(/^([a-zA-Z_][a-zA-Z_0-9]*)(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*=>(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*/);
+									let m = v.match(/^([A-Za-z_$][0-9A-Za-z_$]*)(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*=>(?:[\t \n\r]?(?:\/\*(?:.|\n)*?\*\/)?(?:\/\/[^\n\r]*)?)*/);
 									p = m[1];
 									v = v.substring(m[0].length);
 								}
@@ -163,7 +163,7 @@
 								}
 							}
 						}
-						s = 'new Map([' + c.join(',') + '])';
+						s = 'new Map' + (c.length ? '([' + c.join(',') + '])' : '');
 					} else if (t === 'Set') {
 						let c = [];
 						for (let n of d) {
@@ -175,12 +175,13 @@
 						if (sorting) {
 							c.sort();
 						}
-						s = 'new Set([' + c.join(',') + '])';
+						s = 'new Set' + (c.length ? '([' + c.join(',') + '])' : '');
 					} else if (typeof d.valueOf === 'function' && d !== (t = d.valueOf())) {
 						s = realToJsex(t, log, sorting, jsonCompatible, dbg);
 					} else {
 						let c = [],
-							n = Object.getOwnPropertyNames(d);
+							n = Object.getOwnPropertyNames(d),
+							m = Object.getOwnPropertySymbols(d);
 						if (!jsonCompatible) {
 							c.push('"__proto__":null');
 						}
@@ -191,7 +192,6 @@
 							}
 						}
 						n = [];
-						let m = Object.getOwnPropertySymbols(d);
 						for (let i = 0; i < m.length; i++) {
 							let v = realToJsex(d[m[i]], log, sorting, jsonCompatible, dbg);
 							if (v !== undefined) {
@@ -255,29 +255,45 @@
 					length: l + p + 1
 				};
 			}
-		} else if (str.substring(0, l = 8) === 'new Set(') {
-			m = str.substring(l).parseJsex();
-			if (m && Array.isArray(m.value) && str[l += m.length] === ')') {
-				r = {
-					value: new Set(m.value),
-					length: l + p + 1
-				};
-			}
-		} else if (str.substring(0, l = 8) === 'new Map(') {
-			m = str.substring(l).parseJsex();
-			if (m && Array.isArray(m.value) && str[l += m.length] === ')') {
-				for (let i = 0; i < m.value.length; i++) {
-					if (!Array.isArray(m.value[i]) || m.value[i].length !== 2) {
-						m.e = true;
-						break;
-					}
-				}
-				if (!m.e) {
+		} else if (str.substring(0, l = 7) === 'new Set') {
+			if (str[l] === '(') {
+				l += 1;
+				m = str.substring(l).parseJsex();
+				if (m && Array.isArray(m.value) && str[l += m.length] === ')') {
 					r = {
-						value: new Map(m.value),
+						value: new Set(m.value),
 						length: l + p + 1
 					};
 				}
+			} else {
+				r = {
+					value: new Set,
+					length: l + p
+				};
+			}
+		} else if (str.substring(0, l = 7) === 'new Map') {
+			if (str[l] === '(') {
+				l += 1;
+				m = str.substring(l).parseJsex();
+				if (m && Array.isArray(m.value) && str[l += m.length] === ')') {
+					for (let i = 0; i < m.value.length; i++) {
+						if (!Array.isArray(m.value[i]) || m.value[i].length !== 2) {
+							m.e = true;
+							break;
+						}
+					}
+					if (!m.e) {
+						r = {
+							value: new Map(m.value),
+							length: l + p + 1
+						};
+					}
+				}
+			} else {
+				r = {
+					value: new Map,
+					length: l + p
+				};
 			}
 		} else if (str.substring(0, l = 6) === 'Symbol') {
 			if (str[l] === '(') {
@@ -398,46 +414,40 @@
 					length: l + p + 1
 				};
 			}
-		} else if (m = str.match(/^(-?)([1-9]\d*|0(?:[bB][01]+|[oO][0-7]+|[xX][0-fA-F]+)?)n/)) {
+		} else if (m = str.match(/^(-?)([1-9]\d*|0(?:[bB][01]+|[oO][0-7]+|[xX][0-9A-Fa-f]+)?)n/)) {
 			r = {
 				value: m[1] ? -BigInt(m[2]) : BigInt(m[2]),
 				length: m[0].length + p
 			};
-		} else if (m = str.match(/^(-?)(Infinity|0(?:[bB][01]+|[oO][0-7]+|[xX][0-fA-F]+)|[1-9](?:\.\d+)?[eE][-+]?[1-9]\d*|(?:[1-9]\d*|0)(?:\.\d+)?)/)) {
+		} else if (m = str.match(/^(-?)(Infinity|0(?:[bB][01]+|[oO][0-7]+|[xX][0-9A-Fa-f]+)|[1-9](?:\.\d+)?[eE][-+]?[1-9]\d*|(?:[1-9]\d*|0)(?:\.\d+)?)/)) {
 			r = {
 				value: m[1] ? -m[2] : +m[2],
 				length: m[0].length + p
 			};
-		} else if (m = str.match(/^"(?:[^\n\r"\\]|\\[^\n\r])*"/)) {
+		} else if (m = str.match(/^"((?:[^\n\r"\\]|\\(?:.|\n))*)"/)) {
 			try {
 				r = {
-					value: m[0].replace(/^"|"$|\\[\\btnvfr"]|\\x[0-fA-F]{2}|\\u([0-fA-F]{4}|\{[0-fA-F]{1,5}\})|\\/g, a => {
-						if (a === '"') {
-							return '';
-						} else if (a === '\\\\') {
-							return '\\';
-						} else if (a === '\\"') {
-							return '"';
-						} else if (a === '\\b') {
+					value: m[1].replace(/\\(?:x([0-9A-Fa-f]{2})|u(?:([0-9A-Fa-f]{4})|\{([0-9A-Fa-f]{1,5})\})|(.|\n))/g, (a, p1, p2, p3, p4) => {
+						if (p1 || p2) {
+							return String.fromCharCode('0x' + (p1 | p2));
+						} else if (p3) {
+							return String.fromCodePoint('0x' + p3);
+						} else if (p4 === 'b') {
 							return '\b';
-						} else if (a === '\\t') {
-							return '	';
-						} else if (a === '\\n') {
+						} else if (p4 === 't') {
+							return '\t';
+						} else if (p4 === 'n') {
 							return '\n';
-						} else if (a === '\\v') {
+						} else if (p4 === 'v') {
 							return '\v';
-						} else if (a === '\\f') {
+						} else if (p4 === 'f') {
 							return '\f';
-						} else if (a === '\\r') {
+						} else if (p4 === 'r') {
 							return '\r';
-						} else if (a.length > 3) {
-							if (a[2] === '{') {
-								return String.fromCodePoint('0x' + a.substring(3, a.length - 1));
-							} else {
-								return String.fromCharCode('0x' + a.substring(2));
-							}
+						} else if (p4 === 'u' || p4 === 'x') {
+							throw SyntaxError('Invalid Unicode escape sequence');
 						} else {
-							throw 'bad escape in string';
+							return p4;
 						}
 					}),
 					length: m[0].length + p
