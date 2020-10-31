@@ -66,9 +66,8 @@
 					}
 				} else if (t === 'Date') {
 					s = 'new Date(' + d.getTime() + ')';
-				} else if (t === 'Error') {
-					s = ['AggregateError', 'EvalError', 'RangeError', 'ReferenceError', 'SyntaxError', 'TypeError', 'URIError'].indexOf(d.name) < 0 ? 'Error' : d.name;
-					s += '(';
+				} else if (t === 'Error' && d.name !== 'AggregateError') {
+					s = (['EvalError', 'RangeError', 'ReferenceError', 'SyntaxError', 'TypeError', 'URIError'].indexOf(d.name) < 0 ? 'Error' : d.name) + '(';
 					if (d.message) {
 						s += strEncode(d.message);
 					}
@@ -85,7 +84,7 @@
 						}
 					} else {
 						let p = '';
-						const r = /^\{[\t \n\r]*|[\t \n\r]*\}$/g,
+						const r = /^\{(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*|(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*\}$/g,
 							paramlength = () => {
 								let i = 1;
 								while (v[i] !== ')') {
@@ -133,8 +132,8 @@
 							}
 						}
 						if (p) {
-							let m = v.match(/^(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*(?:(?:'use [a-z]+'|"use [a-z]+")(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*;)?/);
-							v = `${v.substring(0, m[0].length)}let [${p}]=arguments;${v.substring(m[0].length)}`;
+							let m = v.match(/^(?:(?:'use [a-z]+'|"use [a-z]+")(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*;)?/);
+							v = (m[0] ? `${m[0]}\nlet [${p}]=arguments;` : `let [${p}]=arguments;\n`) + v.substring(m[0].length);
 						}
 						s = `${t}(${v ? strEncode(v) : ''})`;
 					}
@@ -145,12 +144,11 @@
 				} else {
 					log.add(d);
 					if (arrays.indexOf(t) >= 0) {
-						s = '[';
 						let c = [];
 						for (let i = 0; i < d.length; i++) {
-							let n = realToJsex(d[i], log, sorting, jsonCompatible, dbg);
-							if (n !== undefined) {
-								c.push(n);
+							let v = realToJsex(d[i], log, sorting, jsonCompatible, dbg);
+							if (v !== undefined) {
+								c.push(v);
 							}
 						}
 						s = '[' + c.join(',') + ']';
@@ -178,6 +176,19 @@
 							c.sort();
 						}
 						s = 'new Set' + (c.length ? '([' + c.join(',') + '])' : '');
+					} else if (t === 'Error') {
+						if (Array.isArray(d.errors)) {
+							let v = realToJsex(d.errors, log, sorting, jsonCompatible, dbg);
+							if (v !== undefined) {
+								s = 'AggregateError(' + v + '';
+								if (d.message) {
+									s += ',' + strEncode(d.message);
+								}
+								s += ')';
+							}
+						} else if (dbg) {
+							throw TypeError('bad AggregateError');
+						}
 					} else if (typeof d.valueOf === 'function' && d !== (t = d.valueOf())) {
 						s = realToJsex(t, log, sorting, jsonCompatible, dbg);
 					} else {
@@ -211,14 +222,17 @@
 			}
 			return s;
 		};
+
 	//we want globalThis
 	if (typeof globalThis === 'undefined') {
 		self.globalThis = self;
 	}
+
 	//we need to make these constructors global
 	globalThis.AsyncFunction = async function () { }.constructor;
 	globalThis.GeneratorFunction = function* () { }.constructor;
 	globalThis.AsyncGeneratorFunction = async function* () { }.constructor;
+
 	//deserialize jsex, support JSON string
 	String.prototype.parseJsex = function () {
 		let m, l, r,
@@ -256,6 +270,29 @@
 					value: new Date(m.value),
 					length: l + p + 1
 				};
+			}
+		} else if (str.substring(0, l = 15) === 'AggregateError(') {
+			let n = str.substring(l).parseJsex();
+			if (n && Array.isArray(n.value)) {
+				l += n.length;
+				if (str[l] === ',') {
+					l += 1;
+					let m = str.substring(l).parseJsex();
+					if (m && typeof m.value === 'string') {
+						l += m.length;
+						if (str[l] === ')') {
+							r = {
+								value: AggregateError(n.value, m.value),
+								length: l + p + 1
+							};
+						}
+					}
+				} else if (str[l] === ')') {
+					r = {
+						value: AggregateError(n.value),
+						length: l + p + 1
+					};
+				}
 			}
 		} else if (str.substring(0, l = 7) === 'new Set') {
 			if (str[l] === '(') {
@@ -466,7 +503,7 @@
 					length: m[0].length + p
 				};
 			} catch (e) { }
-		} else if (m = str.match(/^((?:Aggregate|Eval|Range|Reference|Syntax|Type|URI)?Error|(?:Async)?(?:Generator)?Function)\(/)) {
+		} else if (m = str.match(/^((?:Eval|Range|Reference|Syntax|Type|URI)?Error|(?:Async)?(?:Generator)?Function)\(/)) {
 			l = m[0].length;
 			if (str[l] === ')') {
 				r = {
@@ -488,6 +525,7 @@
 		}
 		return r;
 	};
+
 	//reference types are the names of their constructor, such as String, Uint8Array, AsyncFunction
 	//primitive types are lowercased, such as string, bigint, null
 	globalThis.dataType = data => {
@@ -502,18 +540,20 @@
 			return t;
 		}
 	};
+
 	//serialize to jsex
 	//sorting: whether sorting keys in Map, Set and Object
 	//jsonCompatible: whether generate JSON compatible string. this argument makes sance only if data doesn't contain extended types
 	//debug: whether throw error when meet unexpected data
 	globalThis.toJsex = (data, sorting, jsonCompatible, debug) => realToJsex(data, new Set(), sorting, jsonCompatible, debug);
+
 	//isEqual returns true if toJsex(o1, true) === toJsex(o2, true)
 	//note: -0 does not equal to 0
 	globalThis.isEqual = (o1, o2) => {
 		if (Object.is(o1, o2)) {
 			return true;
 		} else {
-			const types = ['undefined', 'null', 'boolean', 'string', 'number', 'bigint', 'symbol', 'Date', 'RegExp', 'Error', 'Function', 'AsyncFunction', 'GeneratorFunction', 'AsyncGeneratorFunction', 'Map', 'Set'],
+			const types = ['undefined', 'null', 'boolean', 'string', 'number', 'bigint', 'Date', 'RegExp', 'Error', 'symbol', 'Function', 'AsyncFunction', 'GeneratorFunction', 'AsyncGeneratorFunction', 'Map', 'Set'],
 				d1 = dataType(o1),
 				d2 = dataType(o2),
 				t1 = types.indexOf(d1),
@@ -536,6 +576,14 @@
 								v.push(toJsex(n, true));
 							}
 							return isEqual(m.sort(), v.sort());
+						}
+					} else if (t1 === 6) {
+						return o1.getTime() === o2.getTime();
+					} else if (t1 === 7) {
+						return o1.toString() === o2.toString();
+					} else if (t1 === 8) {
+						if (o1.name === o2.name && o1.message === o2.message) {
+							return o1.name === 'AggregateError' ? Array.isArray(o1.errors) && Array.isArray(o2.errors) && isEqual(o1.errors, o2.errors) : true;
 						}
 					} else {
 						return toJsex(o1) === toJsex(o2);
