@@ -424,30 +424,34 @@
 				value: m[1] ? -m[2] : +m[2],
 				length: m[0].length + p
 			};
-		} else if (m = str.match(/^"((?:[^\n\r"\\]|\\(?:.|\n))*)"/)) {
+		} else if (m = str.match(/^"((?:[^\n\r"\\]|\\(?:\r\n?|[^\r]))*)"/)) {
 			try {
 				r = {
-					value: m[1].replace(/\\(?:x([0-9A-Fa-f]{2})|u(?:([0-9A-Fa-f]{4})|\{([0-9A-Fa-f]{1,5})\})|(.|\n))/g, (a, p1, p2, p3, p4) => {
-						if (p1 || p2) {
-							return String.fromCharCode('0x' + (p1 | p2));
-						} else if (p3) {
-							return String.fromCodePoint('0x' + p3);
-						} else if (p4 === 'b') {
+					value: m[1].replace(/\\(?:([0-7]{1,2})|x([0-9A-Fa-f]{2})|u(?:([0-9A-Fa-f]{4})|\{([0-9A-Fa-f]{1,5})\})|(\r\n?|\n)|([^\n\r]))/g, (a, p1, p2, p3, p4, p5, p6) => {
+						if (p1) {
+							return String.fromCharCode('0o' + p1);
+						} else if (p2 || p3) {
+							return String.fromCharCode('0x' + (p2 | p3));
+						} else if (p4) {
+							return String.fromCodePoint('0x' + p4);
+						} else if (p5) {
+							return '';
+						} else if (p6 === 'b') {
 							return '\b';
-						} else if (p4 === 't') {
+						} else if (p6 === 't') {
 							return '\t';
-						} else if (p4 === 'n') {
+						} else if (p6 === 'n') {
 							return '\n';
-						} else if (p4 === 'v') {
+						} else if (p6 === 'v') {
 							return '\v';
-						} else if (p4 === 'f') {
+						} else if (p6 === 'f') {
 							return '\f';
-						} else if (p4 === 'r') {
+						} else if (p6 === 'r') {
 							return '\r';
-						} else if (p4 === 'u' || p4 === 'x') {
-							throw SyntaxError('Invalid Unicode escape sequence');
+						} else if ('ux'.indexOf(p6) < 0) {
+							return p6;
 						} else {
-							return p4;
+							throw SyntaxError('Invalid Unicode escape sequence');
 						}
 					}),
 					length: m[0].length + p
