@@ -75,7 +75,7 @@
 					s += ')';
 				} else if (['Function', 'AsyncFunction', 'GeneratorFunction', 'AsyncGeneratorFunction'].indexOf(t) >= 0) {
 					let v = d.toString();
-					if (v.substring(0, 5) === 'class') {
+					if (/^class(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)+/.test(v)) {
 						if (dbg) {
 							throw TypeError('unable to serialize class');
 						}
