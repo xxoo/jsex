@@ -25,15 +25,16 @@ By calling `toJsex(data, sorting = false, jsonCompatible = false, debug = false)
 ```javascript
 import './jsex.js';
 let data = {};
-data.someRegex = /\wjsex\w/ig;
+data.someRegex = /\w\u2028\w\u2029/ig;
 data.someSet = new Set();
 data.someSet.add(1);
 data.someSet.add(0n);
+data.someSet.add(a => a);
 data[Symbol.for('symbolKey')] = 'valueForSymbolKey';
 data.normalKey = 'valueForNormalKey';
 console.log('normal:', toJsex(data), '\nsorted:', toJsex(data, true));
-//normal: {"__proto__":null,"someRegex":/\wjsex\w/gi,"someSet":new Set([1,0n]),"normalKey":"valueForNormalKey",[Symbol.for("symbolKey")]:"valueForSymbolKey"} 
-//sorted: {"__proto__":null,"normalKey":"valueForNormalKey","someRegex":/\wjsex\w/gi,"someSet":new Set([0n,1]),[Symbol.for("symbolKey")]:"valueForSymbolKey"}
+//normal: {"__proto__":null,"someRegex":/\w\u2028\w\u2029/gi,"someSet":new Set([1,0n,Function("let [a]=arguments;\nreturn a")]),"normalKey":"valueForNormalKey",[Symbol.for("symbolKey")]:"valueForSymbolKey"}
+//sorted: {"__proto__":null,"normalKey":"valueForNormalKey","someRegex":/\w\u2028\w\u2029/gi,"someSet":new Set([0n,1,Function("let [a]=arguments;\nreturn a")]),[Symbol.for("symbolKey")]:"valueForSymbolKey"}
 try {
   JSON.parse(toJsex(data, false, true));
 } catch(e) {
@@ -77,6 +78,18 @@ console.log('is json a subset of javascript:', isEqual(evalJson, parseJson));
 
 ## Does `parseJsex` support JSON string?
 Yes, but any `__proto__` key of `Object` in JSON string will be ignored. As the above example shown.
+
+
+## How to serialize a `class`?
+`class` is not a supported directly. However you can still store it in a function.
+```javascript
+console.log(toJsex(base => class extends base {
+  constructor() {
+    super(...arguments);
+  }
+}));
+//Function("base","return class extends base {\n  constructor() {\n    super(...arguments);\n  }\n}")
+```
 
 
 ## Can I use comments in jsex?

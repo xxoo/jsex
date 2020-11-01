@@ -1,10 +1,50 @@
-//jsex version: 1.0.1
+//jsex version: 1.0.2
 //https://github.com/xxoo/jsex
 (() => {
 	'use strict';
 	const arrays = ['Array', 'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array'],
+		//assume a function has no syntax error, then we can use some ugly detection to seek out the end of its params
+		paramlength = (s, infor) => {
+			let m, e, isfor,
+				i = 1;
+			while (s[i] !== ')') {
+				if ((m = blanklength(s.substring(i))) > 0) {
+					i += m;
+				} else if (s[i] === '/') {
+					if (e) {
+						i++;
+						e = false;
+					} else {
+						i += s.substring(i).match(/^\/(?!\*)(?:[^[/\\\r\n\u2028\u2029]|\\.|\[(?:[^\r\n\u2028\u2029\]\\]|\\.)*\])+\//)[0].length;
+						e = true;
+					}
+				} else if (s[i] === '"') {
+					i += s.substring(i).match(/^"(?:[^\r\n"\\]|\\(?:\r\n?|[^\r]))*"/)[0].length;
+					e = true;
+				} else if (s[i] === '\'') {
+					i += s.substring(i).match(/^'(?:[^\r\n'\\]|\\(?:\r\n?|[^\r]))*'/)[0].length;
+					e = true;
+				} else if (s[i] === '`') {
+					i += s.substring(i).match(/^`(?:[^`\\]|\\[\s\S])*`/)[0].length;
+					e = true;
+				} else if (s[i] === '(') {
+					i += paramlength(s.substring(i), isfor);
+					e = true;
+				} else {
+					m = s.substring(i).match(/^[\d\w$.]+|[!~+\-*=<>|&{}\[\]?:,;]+/);
+					isfor = m[0] === 'for' || (isfor && m[0] === 'await');
+					i += m[0].length;
+					if (infor && m[0] === 'of') {
+						e = false;
+					} else {
+						e = ['extends', 'yield', 'await', 'new', 'delete', 'void', 'typeof', 'case', 'throw', 'return', 'in', 'else', 'do'].indexOf(m[0]) < 0 && '!~+-*=<>|&{}[?:,;'.indexOf(s[i - 1]) < 0;
+					}
+				}
+			}
+			return i + 1;
+		},
 		blanklength = str => {
-			let m = str.match(/^(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*/);
+			let m = str.match(/^(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*/);
 			if (m) {
 				return m[0].length;
 			} else {
@@ -12,7 +52,7 @@
 			}
 		},
 		strEncode = (str, jsonCompatible) => {
-			return '"' + str.replace(jsonCompatible ? /[\ud800-\udbff][\udc00-\udfff]|[\\"\x00-\x1f\ud800-\udfff]/g : /[\ud800-\udbff][\udc00-\udfff]|[\n\r\\"\ud800-\udfff]/g, a => {
+			return '"' + str.replace(jsonCompatible ? /[\ud800-\udbff][\udc00-\udfff]|[\\"\x00-\x1f\ud800-\udfff]/g : /[\ud800-\udbff][\udc00-\udfff]|[\r\n\\"\ud800-\udfff]/g, a => {
 				if (a.length === 1) {
 					if (a === '\\') {
 						return '\\\\';
@@ -62,7 +102,7 @@
 							s = d.toString();
 							s = s.length > 8 ? s.substring(7, s.length - 1) : '';
 						}
-						if (!(t = s.match(/^Symbol\.(\w+)$/)) || Symbol[t[1]] !== d) {
+						if (!(t = s.match(/^Symbol\.([\w$][\d\w$]*)$/)) || Symbol[t[1]] !== d) {
 							s = s ? 'Symbol(' + strEncode(s) + ')' : 'Symbol()';
 						}
 					}
@@ -76,68 +116,53 @@
 					s += ')';
 				} else if (['Function', 'AsyncFunction', 'GeneratorFunction', 'AsyncGeneratorFunction'].indexOf(t) >= 0) {
 					let v = d.toString();
-					if (/^class(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)+/.test(v)) {
+					if (/^class(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)+/.test(v)) {
 						if (dbg) {
 							throw TypeError('unable to serialize class');
 						}
-					} else if (/\{[\t \n\r]*\[\w+(?: \w+)+\][\t \n\r]*\}$/.test(v)) {
+					} else if (/\{\s*\[\w+(?: \w+)+\]\s*\}$/.test(v)) {
 						if (dbg) {
 							throw TypeError('unable to serialize native function');
 						}
 					} else {
-						let p = '';
-						const r = /^\{(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*|(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*\}$/g,
-							paramlength = () => {
-								let i = 1;
-								while (v[i] !== ')') {
-									if (v[i] === '/') {
-										i += v.substring(i).match(/^(?:(?:\/\*(?:[^*]|\*(?!\/))*\*\/)*(?:\/\/[^\n\r]*)*)*/)[0].length;
-									} else {
-										if ('\t \n\r'.indexOf(v[i]) < 0) {
-											p += v[i];
-										}
-										i++;
-									}
-								}
-								return i + 1;
+						const r = /^[{(]\s*|\s*[)}]$/g,
+							getparam = () => {
+								let l = paramlength(v);
+								p = v.substring(0, l).replace(r, '');
+								v = v.substring(l);
+								v = v.substring(blanklength(v));
 							};
+						let p;
 						if (t === 'GeneratorFunction') {
-							v = v.substring(8).replace(/^(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*\*(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*(?:[A-Za-z_$][0-9A-Za-z_$]*)?(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*/, '');
-							v = v.substring(paramlength());
-							v = v.substring(blanklength(v)).replace(r, '');
+							v = v.substring(8).replace(/^(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*\*(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*(?:[\w$][\d\w$]*)?(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*/, '');
+							getparam();
 						} else if (t === 'AsyncGeneratorFunction') {
-							v = v.substring(5).replace(/^(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)+function(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*\*(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*(?:[A-Za-z_$][0-9A-Za-z_$]*)?(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*/, '');
-							v = v.substring(paramlength());
-							v = v.substring(blanklength(v)).replace(r, '');
+							v = v.substring(5).replace(/^(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)+function(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*\*(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*(?:[\w$][\d\w$]*)?(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*/, '');
+							getparam();
 						} else {
 							if (t === 'AsyncFunction') {
 								v = v.substring(5);
 								v = v.substring(blanklength(v));
 							}
 							if (v.substring(0, 8) === 'function') {
-								v = v.substring(8).replace(/^(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*(?:[A-Za-z_$][0-9A-Za-z_$]*)?(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*/, '');
-								v = v.substring(paramlength());
-								v = v.substring(blanklength(v)).replace(r, '');
+								v = v.substring(8).replace(/^(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*(?:[\w$][\d\w$]*)?(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*/, '');
+								getparam();
 							} else {
 								if (v[0] === '(') {
-									v = v.substring(paramlength()).replace(/^(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*=>(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*/, '');
+									getparam();
 								} else {
-									let m = v.match(/^([A-Za-z_$][0-9A-Za-z_$]*)(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*=>(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*/);
-									p = m[1];
-									v = v.substring(m[0].length);
-								}
-								if (v[0] !== '{') {
-									v = 'return ' + v;
-								} else {
-									v = v.replace(r, '');
+									p = v.match(/^([\w$][\d\w$]*)/)[0];
+									v = v.substring(p.length);
+									v = v.substring(blanklength(v));
 								}
 							}
 						}
-						if (p) {
-							let m = v.match(/^(?:(?:'use [a-z]+'|"use [a-z]+")(?:[\t \n\r]?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/[^\n\r]*)?)*;)?/);
-							v = (m[0] ? `${m[0]}\nlet [${p}]=arguments;` : `let [${p}]=arguments;\n`) + v.substring(m[0].length);
+						if (v[0] === '{') {
+							v = v.replace(r, '');
+						} else {
+							v = 'return ' + v;
 						}
-						s = `${t}(${v ? strEncode(v) : ''})`;
+						s = t + (v ? `(${p ? strEncode(p) + ',' : ''}${strEncode(v)})` : '()');
 					}
 				} else if (log.has(d)) {
 					if (dbg) {
@@ -368,7 +393,7 @@
 						};
 					}
 				}
-			} else if ((m = str.substring(l).match(/^\.(\w+)/)) && typeof Symbol[m[1]] === 'symbol') {
+			} else if ((m = str.substring(l).match(/^\.([\w$][\d\w$]*)/)) && typeof Symbol[m[1]] === 'symbol') {
 				r = {
 					value: Symbol[m[1]],
 					length: l + p + m[0].length
@@ -455,20 +480,20 @@
 					length: l + p + 1
 				};
 			}
-		} else if (m = str.match(/^(-?)([1-9]\d*|0(?:[bB][01]+|[oO][0-7]+|[xX][0-9A-Fa-f]+)?)n/)) {
+		} else if (m = str.match(/^(-?)([1-9]\d*|0(?:[bB][01]+|[oO][0-7]+|[xX][\dA-Fa-f]+)?)n/)) {
 			r = {
 				value: m[1] ? -BigInt(m[2]) : BigInt(m[2]),
 				length: m[0].length + p
 			};
-		} else if (m = str.match(/^(-?)(Infinity|0(?:[bB][01]+|[oO][0-7]+|[xX][0-9A-Fa-f]+)|[1-9](?:\.\d+)?[eE][-+]?[1-9]\d*|(?:[1-9]\d*|0)(?:\.\d+)?)/)) {
+		} else if (m = str.match(/^(-?)(Infinity|0(?:[bB][01]+|[oO][0-7]+|[xX][\dA-Fa-f]+)|[1-9](?:\.\d+)?[eE][-+]?[1-9]\d*|(?:[1-9]\d*|0)(?:\.\d+)?)/)) {
 			r = {
 				value: m[1] ? -m[2] : +m[2],
 				length: m[0].length + p
 			};
-		} else if (m = str.match(/^"((?:[^\n\r"\\]|\\(?:\r\n?|[^\r]))*)"/)) {
+		} else if (m = str.match(/^"((?:[^\r\n"\\]|\\(?:\r\n?|[^\r]))*)"/)) {
 			try {
 				r = {
-					value: m[1].replace(/\\(?:([0-7]{1,2})|x([0-9A-Fa-f]{2})|u(?:([0-9A-Fa-f]{4})|\{([0-9A-Fa-f]{1,5})\})|(\r\n?|\n)|([^\n\r]))/g, (p0, p1, p2, p3, p4, p5, p6) => {
+					value: m[1].replace(/\\(?:([0-7]{1,2})|x([\dA-Fa-f]{2})|u(?:([\dA-Fa-f]{4})|\{([\dA-Fa-f]{1,5})\})|(\r\n?|\n)|([^\r\n]))/g, (p0, p1, p2, p3, p4, p5, p6) => {
 						if (p1) {
 							return String.fromCharCode('0o' + p1);
 						} else if (p2 || p3) {
@@ -498,7 +523,7 @@
 					length: m[0].length + p
 				};
 			} catch (e) { }
-		} else if (m = str.match(/^\/(?!\*)(?:[^\n\r/\\]|\\[^\n\r])+\/(g?i?m?s?u?y?)/)) {
+		} else if (m = str.match(/^\/(?!\*)((?:[^[/\\\r\n\u2028\u2029]|\\.|\[(?:[^\r\n\u2028\u2029\]\\]|\\.)*\])+)\/(g?i?m?s?u?y?)/)) {
 			try {
 				r = {
 					value: RegExp(m[1], m[2]),
@@ -521,6 +546,18 @@
 							value: globalThis[m[1]](n.value),
 							length: l + p + 1
 						};
+					} else if (str[l] === ',') {
+						l += 1;
+						let b = str.substring(l).parseJsex();
+						if (b && typeof b.value === 'string') {
+							l += b.length;
+							if (str[l] === ')') {
+								r = {
+									value: globalThis[m[1]](n.value, b.value),
+									length: l + p + 1
+								};
+							}
+						}
 					}
 				}
 			}
