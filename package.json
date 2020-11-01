@@ -1,6 +1,6 @@
 {
 	"name": "jsex",
-	"version": "1.0.2",
+	"version": "1.0.3",
 	"description": "jsex is an extended JSON data format",
 	"main": "jsex.js",
 	"repository": {
