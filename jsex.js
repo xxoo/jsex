@@ -1,4 +1,4 @@
-//jsex version: 1.0.3
+//jsex version: 1.0.4
 //https://github.com/xxoo/jsex
 (() => {
 	'use strict';
@@ -118,46 +118,36 @@
 							throw TypeError('unable to serialize native function');
 						}
 					} else {
-						const r = /^[{(]\s*|\s*[)}]$/g,
-							getparam = () => {
-								let l = paramlength(v);
-								p = v.substring(0, l).replace(r, '');
-								v = v.substring(l);
-								v = v.substring(blanklength(v));
-							};
-						let p;
-						if (t === 'GeneratorFunction') {
-							v = v.substring(8).replace(/^(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*\*(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*(?:[\w$][\d\w$]*)?(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*/, '');
-							getparam();
-						} else if (t === 'AsyncGeneratorFunction') {
-							v = v.substring(5).replace(/^(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)+function(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*\*(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*(?:[\w$][\d\w$]*)?(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*/, '');
-							getparam();
-						} else {
-							if (t === 'AsyncFunction') {
-								v = v.substring(5);
-								v = v.substring(blanklength(v));
-							}
-							if (v.substring(0, 8) === 'function') {
-								v = v.substring(8).replace(/^(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*(?:[\w$][\d\w$]*)?(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*/, '');
-								getparam();
-							} else {
-								if (v[0] === '(') {
-									getparam();
-								} else {
-									p = v.match(/^([\w$][\d\w$]*)/)[0];
-									v = v.substring(p.length);
-									v = v.substring(blanklength(v));
-								}
-								v = v.substring(2);
-								v = v.substring(blanklength(v));
-							}
+						const r = /^[{(]\s*|\s*[)}]$/g;
+						if (t.substring(0, 5) === 'Async') {
+							v = v.substring(5);
+							v = v.substring(blanklength(v));
 						}
+						if (/GeneratorFunction$/.test(t)) {
+							v = v.replace(/^(?:function(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*)?\*(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*/, '');
+						} else {
+							v = v.replace(/^function(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)+/, '');
+						}
+						let m = v.match(/^([\w$][\d\w$]*(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*)\(/);
+						if (m) {
+							v = v.substring(m[1].length);
+						}
+						if (v[0] === '(') {
+							let l = paramlength(v);
+							m = v.substring(0, l).replace(r, '');
+							v = v.substring(l);
+						} else {
+							m = v.match(/^[\w$][\d\w$]*/)[0];
+							v = v.substring(m.length);
+						}
+						v = v.substring(blanklength(v));
+						v = v.replace(/=>(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*/, '');
 						if (v[0] === '{') {
 							v = v.replace(r, '');
 						} else {
 							v = 'return ' + v;
 						}
-						s = t + (v ? `(${p ? strEncode(p) + ',' : ''}${strEncode(v)})` : '()');
+						s = t + (v ? `(${m ? strEncode(m) + ',' : ''}${strEncode(v)})` : '()');
 					}
 				} else if (log.has(d)) {
 					if (dbg) {
