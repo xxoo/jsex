@@ -5,11 +5,12 @@
 	const arrays = ['Array', 'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array'],
 		//assume a function has no syntax error, then we can use some ugly detection to seek out the end of its params
 		paramlength = (s, infor) => {
-			let m, e, isfor,
+			let e, isfor,
 				i = 1;
 			while (s[i] !== ')') {
-				if ((m = blanklength(s.substring(i))) > 0) {
-					i += m;
+				let n = blanklength(s.substring(i));
+				if (n > 0) {
+					i += n;
 				} else if (s[i] === '/') {
 					if (e) {
 						i++;
@@ -31,25 +32,17 @@
 					i += paramlength(s.substring(i), isfor);
 					e = true;
 				} else {
-					m = s.substring(i).match(/^[\d\w$.]+|[!~+\-*=<>|&{}\[\]?:,;]+/);
-					isfor = m[0] === 'for' || (isfor && m[0] === 'await');
+					let m = s.substring(i).match(/^[\d\w$.]+|[!~+\-*=<>|&{}\[\]?:,;]+/);
+					isfor = m[0] === 'for' || isfor && m[0] === 'await';
 					i += m[0].length;
-					if (infor && m[0] === 'of') {
-						e = false;
-					} else {
-						e = ['extends', 'yield', 'await', 'new', 'delete', 'void', 'typeof', 'case', 'throw', 'return', 'in', 'else', 'do'].indexOf(m[0]) < 0 && '!~+-*=<>|&{}[?:,;'.indexOf(s[i - 1]) < 0;
-					}
+					e = infor && m[0] === 'of' ? false : ['extends', 'yield', 'await', 'new', 'delete', 'void', 'typeof', 'case', 'throw', 'return', 'in', 'else', 'do'].indexOf(m[0]) < 0 && '!~+-*=<>|&{}[?:,;'.indexOf(s[i - 1]) < 0;
 				}
 			}
 			return i + 1;
 		},
 		blanklength = str => {
 			let m = str.match(/^(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*/);
-			if (m) {
-				return m[0].length;
-			} else {
-				return 0;
-			}
+			return m ? m[0].length : 0;
 		},
 		strEncode = (str, jsonCompatible) => {
 			return '"' + str.replace(jsonCompatible ? /[\ud800-\udbff][\udc00-\udfff]|[\\"\x00-\x1f\ud800-\udfff]/g : /[\ud800-\udbff][\udc00-\udfff]|[\r\n\\"\ud800-\udfff]/g, a => {
@@ -155,6 +148,8 @@
 									v = v.substring(p.length);
 									v = v.substring(blanklength(v));
 								}
+								v = v.substring(2);
+								v = v.substring(blanklength(v));
 							}
 						}
 						if (v[0] === '{') {

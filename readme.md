@@ -73,7 +73,7 @@ console.log('is json a subset of javascript:', isEqual(evalJson, parseJson));
 
 
 ## What is `isEqual`?
-`isEqual(a, b)` returns `true` if `toJsex(a, true) === toJsex(b, true)`. But it could be faster then that expression. You can use it to compare data structure.
+`isEqual(a, b)` returns `true` if `toJsex(a, true) === toJsex(b, true)`. But it could be faster then that expression. You may use it to compare data structure.
 
 
 ## Does `parseJsex` support JSON string?
@@ -81,7 +81,7 @@ Yes, but any `__proto__` key of `Object` in JSON string will be ignored. As the 
 
 
 ## How to serialize a `class`?
-`class` is not a supported directly. However you can still store it in a function.
+`class` is not supported directly. However you can still store it in a function.
 ```javascript
 console.log(toJsex(base => class extends base {
   constructor() {
