@@ -1,4 +1,4 @@
-//jsex version: 1.0.8
+//jsex version: 1.0.9
 //https://github.com/xxoo/jsex
 (() => {
 	'use strict';
@@ -563,19 +563,7 @@
 				return isEqual(o1, v);
 			} else if (t1 > 5) {
 				if (t1 === t2) {
-					if (t1 > 13) {
-						if (o1.size === o2.size) {
-							let m = [];
-							for (let n of o1) {
-								m.push(toJsex(n, true));
-							}
-							v = [];
-							for (let n of o2) {
-								v.push(toJsex(n, true));
-							}
-							return isEqual(m.sort(), v.sort());
-						}
-					} else if (t1 === 6) {
+					if (t1 === 6) {
 						return o1.getTime() === o2.getTime();
 					} else if (t1 === 7) {
 						return o1.toString() === o2.toString();
@@ -583,8 +571,10 @@
 						if (o1.name === o2.name && o1.message === o2.message) {
 							return o1.name === 'AggregateError' ? Array.isArray(o1.errors) && Array.isArray(o2.errors) && isEqual(o1.errors, o2.errors) : true;
 						}
+					} else if (t1 > 13) {
+						return o1.size === o2.size && toJsex(o1, true) === toJsex(o2, true);
 					} else {
-						return toJsex(o1) === toJsex(o2);
+						return toJsex(o1, true) === toJsex(o2, true);
 					}
 				}
 			} else if (t1 < 0 && t2 < 0) {
@@ -610,9 +600,7 @@
 						}
 						m = Object.getOwnPropertySymbols(o1);
 						v = Object.getOwnPropertySymbols(o2);
-						if (m.length === v.length) {
-							return isEqual(m.map(n => toJsex([n, o1[n]], true)).sort(), v.map(n => toJsex([n, o2[n]], true)).sort());
-						}
+						return m.length === v.length && isEqual(m.map(n => toJsex([n, o1[n]], true)).sort(), v.map(n => toJsex([n, o2[n]], true)).sort());
 					}
 				}
 			}
