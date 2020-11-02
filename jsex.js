@@ -1,4 +1,4 @@
-//jsex version: 1.0.7
+//jsex version: 1.0.8
 //https://github.com/xxoo/jsex
 (() => {
 	'use strict';
@@ -65,82 +65,74 @@
 				}
 			}) + '"';
 		},
-		realToJsex = (d, log, sorting, jsonCompatible, dbg) => {
+		realToJsex = (data, log, sorting, jsonCompatible, debug) => {
 			let s;
-			if (d == null) {
-				s = String(d);
+			if (data == null) {
+				s = String(data);
 			} else {
-				let t = dataType(d);
+				let t = dataType(data);
 				if (t === 'boolean' || t === 'RegExp') {
-					s = d.toString();
+					s = data.toString();
 				} else if (t === 'string') {
-					s = strEncode(d, jsonCompatible);
+					s = strEncode(data, jsonCompatible);
 				} else if (t === 'number') {
-					s = Object.is(d, -0) ? '-0' : d.toString();
+					s = Object.is(data, -0) ? '-0' : data.toString();
 				} else if (t === 'bigint') {
-					s = d + 'n';
+					s = data + 'n';
 				} else if (t === 'symbol') {
-					s = Symbol.keyFor(d);
+					s = Symbol.keyFor(data);
 					if (typeof s === 'string') {
 						s = 'Symbol.for(' + strEncode(s) + ')';
 					} else {
 						if ('description' in Symbol.prototype) {
-							s = d.description;
+							s = data.description;
 						} else {
-							s = d.toString();
+							s = data.toString();
 							s = s.length > 8 ? s.substring(7, s.length - 1) : '';
 						}
-						if (!(t = s.match(/^Symbol\.([\w$][\d\w$]*)$/)) || Symbol[t[1]] !== d) {
+						if (!(t = s.match(/^Symbol\.([\w$][\data\w$]*)$/)) || Symbol[t[1]] !== data) {
 							s = s ? 'Symbol(' + strEncode(s) + ')' : 'Symbol()';
 						}
 					}
 				} else if (t === 'Date') {
-					s = 'new Date(' + d.getTime() + ')';
-				} else if (t === 'Error' && d.name !== 'AggregateError') {
-					s = (['EvalError', 'RangeError', 'ReferenceError', 'SyntaxError', 'TypeError', 'URIError'].indexOf(d.name) < 0 ? 'Error' : d.name) + '(';
-					if (d.message) {
-						s += strEncode(d.message);
+					s = 'new Date(' + data.getTime() + ')';
+				} else if (t === 'Error' && data.name !== 'AggregateError') {
+					s = (['EvalError', 'RangeError', 'ReferenceError', 'SyntaxError', 'TypeError', 'URIError'].indexOf(data.name) < 0 ? 'Error' : data.name) + '(';
+					if (data.message) {
+						s += strEncode(data.message);
 					}
 					s += ')';
 				} else if (['Function', 'AsyncFunction', 'GeneratorFunction', 'AsyncGeneratorFunction'].indexOf(t) >= 0) {
-					let v = d.toString();
-					if (/^class(?![\d\w$])/.test(v)) {
-						if (dbg) {
-							throw TypeError('unable to serialize class');
-						}
+					let v = data.toString();
+					if (/^class(?![\data\w$])/.test(v)) {
+						if (debug) throw TypeError('unable to serialize class');
 					} else if (/\{\s*\[\w+(?: \w+)+\]\s*\}$/.test(v)) {
-						if (dbg) {
-							throw TypeError('unable to serialize native function');
-						}
+						if (debug) throw TypeError('unable to serialize native function');
 					} else {
-						const r = /^[{(]\s*|\s*[)}]$/g;
-						let p;
 						if (t[0] === 'A') {
 							v = v.replace(/^async(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/, '');
 						}
-						v = v.replace(/^(?:function(?![\d\w$])(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*)?(?:\*(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*)?(?:[\w$][\d\w$]*(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*(?=\())?/, '');
+						v = v.replace(/^(?:function(?![\data\w$])(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*)?(?:\*(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*)?(?:[\w$][\data\w$]*(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*(?=\())?/, '');
 						if (v[0] === '(') {
 							let l = paramlength(v);
-							p = v.substring(0, l).replace(r, '');
+							s = v.substring(0, l).replace(/^\(\s*|\s*\)$/g, '');
 							v = v.substring(l);
 						} else {
-							p = v.match(/^[\w$][\d\w$]*/)[0];
-							v = v.substring(p.length);
+							s = v.match(/^[\w$][\data\w$]*/)[0];
+							v = v.substring(s.length);
 						}
 						v = v.substring(blanklength(v)).replace(/^=>(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/, '');
-						v = v[0] === '{' ? v.replace(r, '') : 'return ' + v;
-						s = t + (v ? `(${p ? strEncode(p) + ',' : ''}${strEncode(v)})` : '()');
+						v = v[0] === '{' ? v.replace(/^\{\s*|\s*\}$/g, '') : 'return ' + v;
+						s = t + (v ? `(${s ? strEncode(s) + ',' : ''}${strEncode(v)})` : '()');
 					}
-				} else if (log.has(d)) {
-					if (dbg) {
-						throw TypeError('circular structure detected');
-					}
+				} else if (log.has(data)) {
+					if (debug) throw TypeError('circular structure detected');
 				} else {
-					log.add(d);
+					log.add(data);
 					if (arrays.indexOf(t) >= 0) {
 						let c = [];
-						for (let i = 0; i < d.length; i++) {
-							let v = realToJsex(d[i], log, sorting, jsonCompatible, dbg);
+						for (let i = 0; i < data.length; i++) {
+							let v = realToJsex(data[i], log, sorting, jsonCompatible, debug);
 							if (v !== undefined) {
 								c.push(v);
 							}
@@ -148,10 +140,10 @@
 						s = '[' + c.join(',') + ']';
 					} else if (t === 'Map') {
 						let c = [];
-						for (let n of d) {
-							let v = realToJsex(n[0], log, sorting, jsonCompatible, dbg);
+						for (let n of data) {
+							let v = realToJsex(n[0], log, sorting, jsonCompatible, debug);
 							if (v !== undefined) {
-								let m = realToJsex(n[1], log, sorting, jsonCompatible, dbg);
+								let m = realToJsex(n[1], log, sorting, jsonCompatible, debug);
 								if (m !== undefined) {
 									c.push('[' + v + ',' + m + ']');
 								}
@@ -160,8 +152,8 @@
 						s = 'new Map' + (c.length ? '([' + c.join(',') + '])' : '');
 					} else if (t === 'Set') {
 						let c = [];
-						for (let n of d) {
-							let v = realToJsex(n, log, sorting, jsonCompatible, dbg);
+						for (let n of data) {
+							let v = realToJsex(n, log, sorting, jsonCompatible, debug);
 							if (v !== undefined) {
 								c.push(v);
 							}
@@ -171,36 +163,36 @@
 						}
 						s = 'new Set' + (c.length ? '([' + c.join(',') + '])' : '');
 					} else if (t === 'Error') {
-						if (Array.isArray(d.errors)) {
-							let v = realToJsex(d.errors, log, sorting, jsonCompatible, dbg);
+						if (Array.isArray(data.errors)) {
+							let v = realToJsex(data.errors, log, sorting, jsonCompatible, debug);
 							if (v !== undefined) {
-								s = 'AggregateError(' + v + '';
-								if (d.message) {
-									s += ',' + strEncode(d.message);
+								s = 'AggregateError(' + v;
+								if (data.message) {
+									s += ',' + strEncode(data.message);
 								}
 								s += ')';
 							}
-						} else if (dbg) {
+						} else if (debug) {
 							throw TypeError('bad AggregateError');
 						}
-					} else if (typeof d.valueOf === 'function' && d !== (t = d.valueOf())) {
-						s = realToJsex(t, log, sorting, jsonCompatible, dbg);
+					} else if (typeof data.valueOf === 'function' && data !== (t = data.valueOf())) {
+						s = realToJsex(t, log, sorting, jsonCompatible, debug);
 					} else {
 						let c = [],
-							n = Object.getOwnPropertyNames(d),
-							m = Object.getOwnPropertySymbols(d);
+							n = Object.getOwnPropertyNames(data),
+							m = Object.getOwnPropertySymbols(data);
 						if (!jsonCompatible) {
 							c.push('"__proto__":null');
 						}
 						for (let i = 0; i < n.length; i++) {
-							let v = realToJsex(d[n[i]], log, sorting, jsonCompatible, dbg);
+							let v = realToJsex(data[n[i]], log, sorting, jsonCompatible, debug);
 							if (v !== undefined) {
 								c.push((!jsonCompatible && n[i] === '__proto__' ? '["__proto__"]' : strEncode(n[i], jsonCompatible)) + ':' + v);
 							}
 						}
 						n = [];
 						for (let i = 0; i < m.length; i++) {
-							let v = realToJsex(d[m[i]], log, sorting, jsonCompatible, dbg);
+							let v = realToJsex(data[m[i]], log, sorting, jsonCompatible, debug);
 							if (v !== undefined) {
 								n.push('[' + realToJsex(m[i]) + ']:' + v);
 							}
@@ -211,7 +203,7 @@
 						}
 						s = '{' + c.join(',') + (c.length && n.length ? ',' : '') + n.join(',') + '}';
 					}
-					log.delete(d);
+					log.delete(data);
 				}
 			}
 			return s;
@@ -596,8 +588,10 @@
 					}
 				}
 			} else if (t1 < 0 && t2 < 0) {
-				if (arrays.indexOf(d1) >= 0) {
-					if (arrays.indexOf(d2) >= 0 && o1.length === o2.length) {
+				const a1 = arrays.indexOf(d1) >= 0,
+					a2 = arrays.indexOf(d2) >= 0;
+				if (a1 && a2) {
+					if (o1.length === o2.length) {
 						for (let i = 0; i < o1.length; i++) {
 							if (!isEqual(o1[i], o2[i])) {
 								return false;
@@ -605,7 +599,7 @@
 						}
 						return true;
 					}
-				} else {
+				} else if (!a1 && !a2) {
 					let m = Object.getOwnPropertyNames(o1);
 					v = Object.getOwnPropertyNames(o2);
 					if (m.length === v.length) {
