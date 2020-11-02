@@ -25,10 +25,10 @@ By calling `toJsex(data, sorting = false, jsonCompatible = false, debug = false)
 ```javascript
 require('jsex');
 let data = {
-	someRegex: /\w\u2028\w\u2029/ig,
-	someSet: new Set([a => a, 1, 0n]),
-	[Symbol.for('symbolKey')]: 'valueForSymbolKey',
-	normalKey: 'valueForNormalKey'
+  someRegex: /\w\u2028\w\u2029/ig,
+  someSet: new Set([a => a, 1, 0n]),
+  [Symbol.for('symbolKey')]: 'valueForSymbolKey',
+  normalKey: 'valueForNormalKey'
 };
 console.log('normal:', toJsex(data), '\nsorted:', toJsex(data, true));
 //normal: {"__proto__":null,"someRegex":/\w\u2028\w\u2029/gi,"someSet":new Set([Function("a","return a"),1,0n]),"normalKey":"valueForNormalKey",[Symbol.for("symbolKey")]:"valueForSymbolKey"}

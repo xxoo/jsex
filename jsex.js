@@ -1,4 +1,4 @@
-//jsex version: 1.0.4
+//jsex version: 1.0.5
 //https://github.com/xxoo/jsex
 (() => {
 	'use strict';
@@ -123,10 +123,10 @@
 							v = v.substring(5);
 							v = v.substring(blanklength(v));
 						}
-						if (/GeneratorFunction$/.test(t)) {
-							v = v.replace(/^(?:function(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*)?\*(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*/, '');
-						} else {
-							v = v.replace(/^function(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)+/, '');
+						v = v.replace(/^function(?![\d\w$])(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*/, '');
+						if (v[0] === '*') {
+							v = v.substring(1);
+							v = v.substring(blanklength(v));
 						}
 						let m = v.match(/^([\w$][\d\w$]*(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*)\(/);
 						if (m) {
