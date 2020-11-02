@@ -1,4 +1,4 @@
-//jsex version: 1.0.5
+//jsex version: 1.0.6
 //https://github.com/xxoo/jsex
 (() => {
 	'use strict';
@@ -41,7 +41,7 @@
 			return i + 1;
 		},
 		blanklength = str => {
-			let m = str.match(/^(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*/);
+			let m = str.match(/^(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/);
 			return m ? m[0].length : 0;
 		},
 		strEncode = (str, jsonCompatible) => {
@@ -109,7 +109,7 @@
 					s += ')';
 				} else if (['Function', 'AsyncFunction', 'GeneratorFunction', 'AsyncGeneratorFunction'].indexOf(t) >= 0) {
 					let v = d.toString();
-					if (/^class(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)+/.test(v)) {
+					if (/^class(?![\d\w$])/.test(v)) {
 						if (dbg) {
 							throw TypeError('unable to serialize class');
 						}
@@ -123,12 +123,12 @@
 							v = v.substring(5);
 							v = v.substring(blanklength(v));
 						}
-						v = v.replace(/^function(?![\d\w$])(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*/, '');
+						v = v.replace(/^function(?![\d\w$])(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/, '');
 						if (v[0] === '*') {
 							v = v.substring(1);
 							v = v.substring(blanklength(v));
 						}
-						let m = v.match(/^([\w$][\d\w$]*(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*)\(/);
+						let m = v.match(/^([\w$][\d\w$]*(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*)\(/);
 						if (m) {
 							v = v.substring(m[1].length);
 						}
@@ -141,7 +141,7 @@
 							v = v.substring(m.length);
 						}
 						v = v.substring(blanklength(v));
-						v = v.replace(/=>(?:\s?(?:\/\*(?:[^*]|\*(?!\/))*\*\/)?(?:\/\/.*)?)*/, '');
+						v = v.replace(/=>(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/, '');
 						if (v[0] === '{') {
 							v = v.replace(r, '');
 						} else {
