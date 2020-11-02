@@ -1,17 +1,15 @@
-//jsex version: 1.0.6
+//jsex version: 1.0.7
 //https://github.com/xxoo/jsex
 (() => {
 	'use strict';
 	const arrays = ['Array', 'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array'],
+		blanklength = str => str.match(/^(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/)[0].length,
 		//assume a function has no syntax error, then we can use some ugly detection to seek out the end of its params
 		paramlength = (s, infor) => {
 			let e, isfor,
-				i = 1;
+				i = blanklength(s.substring(1)) + 1;
 			while (s[i] !== ')') {
-				let n = blanklength(s.substring(i));
-				if (n > 0) {
-					i += n;
-				} else if (s[i] === '/') {
+				if (s[i] === '/') {
 					if (e) {
 						i++;
 						e = false;
@@ -32,17 +30,14 @@
 					i += paramlength(s.substring(i), isfor);
 					e = true;
 				} else {
-					let m = s.substring(i).match(/^[\d\w$.]+|[!~+\-*=<>|&{}\[\]?:,;]+/);
+					let m = s.substring(i).match(/^[\d\w$.]+|[!~+\-*=<>|&{}[\]?:,;]+/);
 					isfor = m[0] === 'for' || isfor && m[0] === 'await';
 					i += m[0].length;
 					e = infor && m[0] === 'of' ? false : ['extends', 'yield', 'await', 'new', 'delete', 'void', 'typeof', 'case', 'throw', 'return', 'in', 'else', 'do'].indexOf(m[0]) < 0 && '!~+-*=<>|&{}[?:,;'.indexOf(s[i - 1]) < 0;
 				}
+				i += blanklength(s.substring(i));
 			}
 			return i + 1;
-		},
-		blanklength = str => {
-			let m = str.match(/^(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/);
-			return m ? m[0].length : 0;
 		},
 		strEncode = (str, jsonCompatible) => {
 			return '"' + str.replace(jsonCompatible ? /[\ud800-\udbff][\udc00-\udfff]|[\\"\x00-\x1f\ud800-\udfff]/g : /[\ud800-\udbff][\udc00-\udfff]|[\r\n\\"\ud800-\udfff]/g, a => {
@@ -119,35 +114,22 @@
 						}
 					} else {
 						const r = /^[{(]\s*|\s*[)}]$/g;
-						if (t.substring(0, 5) === 'Async') {
-							v = v.substring(5);
-							v = v.substring(blanklength(v));
+						let p;
+						if (t[0] === 'A') {
+							v = v.replace(/^async(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/, '');
 						}
-						v = v.replace(/^function(?![\d\w$])(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/, '');
-						if (v[0] === '*') {
-							v = v.substring(1);
-							v = v.substring(blanklength(v));
-						}
-						let m = v.match(/^([\w$][\d\w$]*(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*)\(/);
-						if (m) {
-							v = v.substring(m[1].length);
-						}
+						v = v.replace(/^(?:function(?![\d\w$])(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*)?(?:\*(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*)?(?:[\w$][\d\w$]*(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*(?=\())?/, '');
 						if (v[0] === '(') {
 							let l = paramlength(v);
-							m = v.substring(0, l).replace(r, '');
+							p = v.substring(0, l).replace(r, '');
 							v = v.substring(l);
 						} else {
-							m = v.match(/^[\w$][\d\w$]*/)[0];
-							v = v.substring(m.length);
+							p = v.match(/^[\w$][\d\w$]*/)[0];
+							v = v.substring(p.length);
 						}
-						v = v.substring(blanklength(v));
-						v = v.replace(/=>(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/, '');
-						if (v[0] === '{') {
-							v = v.replace(r, '');
-						} else {
-							v = 'return ' + v;
-						}
-						s = t + (v ? `(${m ? strEncode(m) + ',' : ''}${strEncode(v)})` : '()');
+						v = v.substring(blanklength(v)).replace(/^=>(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/, '');
+						v = v[0] === '{' ? v.replace(r, '') : 'return ' + v;
+						s = t + (v ? `(${p ? strEncode(p) + ',' : ''}${strEncode(v)})` : '()');
 					}
 				} else if (log.has(d)) {
 					if (dbg) {
