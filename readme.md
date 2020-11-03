@@ -18,7 +18,7 @@ As many as possible, including:
 
 
 ## How to serialize data?
-By calling `toJsex(data, sorting = false, jsonCompatible = false, debug = false)`.
+By calling `toJsex(data, options = {sorting: false, jsonCompatible: false, debug: false})`.
 * `sorting`: Whether sorting the content of `Map`, `Set` and `Object`.
 * `jsonCompatible`: Whether generating JSON compatible string.
 * `debug`: Whether throw error when meet unexpected data
@@ -30,11 +30,11 @@ let data = {
   [Symbol.for('symbolKey')]: 'valueForSymbolKey',
   normalKey: 'valueForNormalKey'
 };
-console.log('normal:', toJsex(data), '\nsorted:', toJsex(data, true));
+console.log('normal:', toJsex(data), '\nsorted:', toJsex(data, {sorting: true}));
 //normal: {"__proto__":null,"someRegex":/\w\u2028\w\u2029/gi,"someSet":new Set([Function("a","return a"),1,0n]),"normalKey":"valueForNormalKey",[Symbol.for("symbolKey")]:"valueForSymbolKey"}
 //sorted: {"__proto__":null,"normalKey":"valueForNormalKey","someRegex":/\w\u2028\w\u2029/gi,"someSet":new Set([0n,1,Function("a","return a")]),[Symbol.for("symbolKey")]:"valueForSymbolKey"}
 try {
-  JSON.parse(toJsex(data, false, true));
+  JSON.parse(toJsex(data, {jsonCompatible: true}));
 } catch(e) {
   console.log('error: jsonCompatible makes sense only if data does not contain extended types');
 }
@@ -48,7 +48,7 @@ let obj = {
 console.log('jsexstr:', jsexstr, '\njsonstr:', jsonstr);
 //jsexstr: {"__proto__":null,["__proto__"]:"","tab":"	"} 
 //jsonstr: {"__proto__":"\u000b","tab":"\t"}
-console.log('is compatible:', toJsex(obj, false, true) === jsonstr);
+console.log('is compatible:', toJsex(obj, {jsonCompatible: true}) === jsonstr);
 //is compatible: true
 ```
 
@@ -63,15 +63,11 @@ let evalJsex = Function('return ' + jsexstr)(),
   parseJson = JSON.parse(jsonstr),
   parseJsonByJsex = jsonstr.parseJsex().value;
 console.log('evalJsex:', evalJsex, '\nparseJsex:', parseJsex, '\nevalJson:', evalJson, '\nparseJson:', parseJson, '\nparseJsonByJsex:', parseJsonByJsex);
-console.log('is jsex a subset of javascript:', isEqual(evalJsex, parseJsex) && isEqual(evalJson, parseJsonByJsex));
-//is jsex a subset of javascript: true
-console.log('is json a subset of javascript:', isEqual(evalJson, parseJson));
+console.log('is json a subset of javascript:', JSON.stringify(evalJson) === JSON.stringify(parseJson));
 //is json a subset of javascript: false
+console.log('is jsex a subset of javascript:', JSON.stringify(evalJsex) === JSON.stringify(parseJsex) && JSON.stringify(evalJson) === JSON.stringify(parseJsonByJsex));
+//is jsex a subset of javascript: true
 ```
-
-
-## What is `isEqual`?
-`isEqual(a, b)` returns `true` if `toJsex(a, true) === toJsex(b, true)`. But it could be faster then that expression. You may use it to compare data structure.
 
 
 ## Does `parseJsex` support JSON string?

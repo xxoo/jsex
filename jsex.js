@@ -1,4 +1,4 @@
-//jsex version: 1.0.9
+//jsex version: 1.0.10
 //https://github.com/xxoo/jsex
 (() => {
 	'use strict';
@@ -65,13 +65,17 @@
 				}
 			}) + '"';
 		},
+		getRealType = data => {
+			let t = Object.prototype.toString.call(data);
+			return t.substring(8, t.length - 1);
+		},
 		realToJsex = (data, log, sorting, jsonCompatible, debug) => {
 			let s;
 			if (data == null) {
 				s = String(data);
 			} else {
-				let t = dataType(data);
-				if (t === 'boolean' || t === 'RegExp') {
+				let t = typeof data;
+				if (t === 'boolean') {
 					s = data.toString();
 				} else if (t === 'string') {
 					s = strEncode(data, jsonCompatible);
@@ -90,120 +94,132 @@
 							s = data.toString();
 							s = s.length > 8 ? s.substring(7, s.length - 1) : '';
 						}
-						if (!(t = s.match(/^Symbol\.([\w$][\data\w$]*)$/)) || Symbol[t[1]] !== data) {
+						if (!(t = s.match(/^Symbol\.([\w$][\d\w$]*)$/)) || Symbol[t[1]] !== data) {
 							s = s ? 'Symbol(' + strEncode(s) + ')' : 'Symbol()';
 						}
 					}
-				} else if (t === 'Date') {
-					s = 'new Date(' + data.getTime() + ')';
-				} else if (t === 'Error' && data.name !== 'AggregateError') {
-					s = (['EvalError', 'RangeError', 'ReferenceError', 'SyntaxError', 'TypeError', 'URIError'].indexOf(data.name) < 0 ? 'Error' : data.name) + '(';
-					if (data.message) {
-						s += strEncode(data.message);
-					}
-					s += ')';
-				} else if (['Function', 'AsyncFunction', 'GeneratorFunction', 'AsyncGeneratorFunction'].indexOf(t) >= 0) {
+				} else if (t === 'function') {
 					let v = data.toString();
-					if (/^class(?![\data\w$])/.test(v)) {
+					if (/^class(?![\d\w$])/.test(v)) {
 						if (debug) throw TypeError('unable to serialize class');
 					} else if (/\{\s*\[\w+(?: \w+)+\]\s*\}$/.test(v)) {
 						if (debug) throw TypeError('unable to serialize native function');
 					} else {
+						//these constructors are not global by default
+						const e = {
+							AsyncFunction: '(async()=>{})',
+							GeneratorFunction: 'function*(){}',
+							AsyncGeneratorFunction: 'async function*(){}'
+						};
+						t = getRealType(data);
 						if (t[0] === 'A') {
 							v = v.replace(/^async(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/, '');
 						}
-						v = v.replace(/^(?:function(?![\data\w$])(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*)?(?:\*(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*)?(?:[\w$][\data\w$]*(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*(?=\())?/, '');
+						v = v.replace(/^(?:function(?![\d\w$])(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*)?(?:\*(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*)?(?:[\w$][\d\w$]*(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*(?=\())?/, '');
 						if (v[0] === '(') {
 							let l = paramlength(v);
 							s = v.substring(0, l).replace(/^\(\s*|\s*\)$/g, '');
 							v = v.substring(l);
 						} else {
-							s = v.match(/^[\w$][\data\w$]*/)[0];
+							s = v.match(/^[\w$][\d\w$]*/)[0];
 							v = v.substring(s.length);
 						}
 						v = v.substring(blanklength(v)).replace(/^=>(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/, '');
 						v = v[0] === '{' ? v.replace(/^\{\s*|\s*\}$/g, '') : 'return ' + v;
-						s = t + (v ? `(${s ? strEncode(s) + ',' : ''}${strEncode(v)})` : '()');
+						s = (t in e ? e[t] + '.constructor' : 'Function') + (v ? `(${s ? strEncode(s) + ',' : ''}${strEncode(v)})` : '()');
 					}
-				} else if (log.has(data)) {
-					if (debug) throw TypeError('circular structure detected');
 				} else {
-					log.add(data);
-					if (arrays.indexOf(t) >= 0) {
-						let c = [];
-						for (let i = 0; i < data.length; i++) {
-							let v = realToJsex(data[i], log, sorting, jsonCompatible, debug);
-							if (v !== undefined) {
-								c.push(v);
-							}
+					t = getRealType(data);
+					if (t === 'RegExp') {
+						s = data.toString();
+					} else if (t === 'Date') {
+						s = 'new Date(' + data.getTime() + ')';
+					} else if (t === 'Error' && data.name !== 'AggregateError') {
+						s = (['EvalError', 'RangeError', 'ReferenceError', 'SyntaxError', 'TypeError', 'URIError'].indexOf(data.name) < 0 ? 'Error' : data.name) + '(';
+						if (data.message) {
+							s += strEncode(data.message);
 						}
-						s = '[' + c.join(',') + ']';
-					} else if (t === 'Map') {
-						let c = [];
-						for (let n of data) {
-							let v = realToJsex(n[0], log, sorting, jsonCompatible, debug);
-							if (v !== undefined) {
-								let m = realToJsex(n[1], log, sorting, jsonCompatible, debug);
-								if (m !== undefined) {
-									c.push('[' + v + ',' + m + ']');
-								}
-							}
-						}
-						s = 'new Map' + (c.length ? '([' + c.join(',') + '])' : '');
-					} else if (t === 'Set') {
-						let c = [];
-						for (let n of data) {
-							let v = realToJsex(n, log, sorting, jsonCompatible, debug);
-							if (v !== undefined) {
-								c.push(v);
-							}
-						}
-						if (sorting) {
-							c.sort();
-						}
-						s = 'new Set' + (c.length ? '([' + c.join(',') + '])' : '');
-					} else if (t === 'Error') {
-						if (Array.isArray(data.errors)) {
-							let v = realToJsex(data.errors, log, sorting, jsonCompatible, debug);
-							if (v !== undefined) {
-								s = 'AggregateError(' + v;
-								if (data.message) {
-									s += ',' + strEncode(data.message);
-								}
-								s += ')';
-							}
-						} else if (debug) {
-							throw TypeError('bad AggregateError');
-						}
-					} else if (typeof data.valueOf === 'function' && data !== (t = data.valueOf())) {
-						s = realToJsex(t, log, sorting, jsonCompatible, debug);
+						s += ')';
+					} else if (log.has(data)) {
+						if (debug) throw TypeError('circular structure detected');
 					} else {
-						let c = [],
-							n = Object.getOwnPropertyNames(data),
-							m = Object.getOwnPropertySymbols(data);
-						if (!jsonCompatible) {
-							c.push('"__proto__":null');
-						}
-						for (let i = 0; i < n.length; i++) {
-							let v = realToJsex(data[n[i]], log, sorting, jsonCompatible, debug);
-							if (v !== undefined) {
-								c.push((!jsonCompatible && n[i] === '__proto__' ? '["__proto__"]' : strEncode(n[i], jsonCompatible)) + ':' + v);
+						log.add(data);
+						if (arrays.indexOf(t) >= 0) {
+							let c = [];
+							for (let i = 0; i < data.length; i++) {
+								let v = realToJsex(data[i], log, sorting, jsonCompatible, debug);
+								if (v !== undefined) {
+									c.push(v);
+								}
 							}
-						}
-						n = [];
-						for (let i = 0; i < m.length; i++) {
-							let v = realToJsex(data[m[i]], log, sorting, jsonCompatible, debug);
-							if (v !== undefined) {
-								n.push('[' + realToJsex(m[i]) + ']:' + v);
+							s = '[' + c.join(',') + ']';
+						} else if (t === 'Map') {
+							let c = [];
+							for (let n of data) {
+								let v = realToJsex(n[0], log, sorting, jsonCompatible, debug);
+								if (v !== undefined) {
+									let m = realToJsex(n[1], log, sorting, jsonCompatible, debug);
+									if (m !== undefined) {
+										c.push('[' + v + ',' + m + ']');
+									}
+								}
 							}
+							s = 'new Map' + (c.length ? '([' + c.join(',') + '])' : '');
+						} else if (t === 'Set') {
+							let c = [];
+							for (let n of data) {
+								let v = realToJsex(n, log, sorting, jsonCompatible, debug);
+								if (v !== undefined) {
+									c.push(v);
+								}
+							}
+							if (sorting) {
+								c.sort();
+							}
+							s = 'new Set' + (c.length ? '([' + c.join(',') + '])' : '');
+						} else if (t === 'Error') {
+							if (Array.isArray(data.errors)) {
+								let v = realToJsex(data.errors, log, sorting, jsonCompatible, debug);
+								if (v !== undefined) {
+									s = 'AggregateError(' + v;
+									if (data.message) {
+										s += ',' + strEncode(data.message);
+									}
+									s += ')';
+								}
+							} else if (debug) {
+								throw TypeError('bad AggregateError');
+							}
+						} else if (typeof data.valueOf === 'function' && data !== (t = data.valueOf())) {
+							s = realToJsex(t, log, sorting, jsonCompatible, debug);
+						} else {
+							let c = [],
+								n = Object.getOwnPropertyNames(data),
+								m = Object.getOwnPropertySymbols(data);
+							if (!jsonCompatible) {
+								c.push('"__proto__":null');
+							}
+							for (let i = 0; i < n.length; i++) {
+								let v = realToJsex(data[n[i]], log, sorting, jsonCompatible, debug);
+								if (v !== undefined) {
+									c.push((!jsonCompatible && n[i] === '__proto__' ? '["__proto__"]' : strEncode(n[i], jsonCompatible)) + ':' + v);
+								}
+							}
+							n = [];
+							for (let i = 0; i < m.length; i++) {
+								let v = realToJsex(data[m[i]], log, sorting, jsonCompatible, debug);
+								if (v !== undefined) {
+									n.push('[' + realToJsex(m[i]) + ']:' + v);
+								}
+							}
+							if (sorting) {
+								c.sort();
+								n.sort();
+							}
+							s = '{' + c.join(',') + (c.length && n.length ? ',' : '') + n.join(',') + '}';
 						}
-						if (sorting) {
-							c.sort();
-							n.sort();
-						}
-						s = '{' + c.join(',') + (c.length && n.length ? ',' : '') + n.join(',') + '}';
+						log.delete(data);
 					}
-					log.delete(data);
 				}
 			}
 			return s;
@@ -214,10 +230,11 @@
 		self.globalThis = self;
 	}
 
-	//we need to make these constructors global
-	globalThis.AsyncFunction = async function () { }.constructor;
-	globalThis.GeneratorFunction = function* () { }.constructor;
-	globalThis.AsyncGeneratorFunction = async function* () { }.constructor;
+	//serialize to jsex
+	//sorting: whether sorting keys in Map, Set and Object
+	//jsonCompatible: whether generate JSON compatible string. this argument makes sance only if data doesn't contain extended types
+	//debug: whether throw error when meet unexpected data
+	globalThis.toJsex = (data, options = {}) => realToJsex(data, new Set(), options.sorting, options.jsonCompatible, options.debug);
 
 	//deserialize jsex, support JSON string
 	String.prototype.parseJsex = function () {
@@ -364,8 +381,8 @@
 				me = true,
 				mq = false,
 				mn = false;
-			m = [];
 			l = 1;
+			m = [];
 			while (!(mn || (me && str[l] === ']'))) {
 				if (mq) {
 					if (str[l] === ',') {
@@ -399,8 +416,8 @@
 				me = true,
 				mq = false,
 				mn = false;
-			m = Object.create(null);
 			l = 1;
+			m = Object.create(null);
 			while (!(mn || (me && str[l] === '}'))) {
 				if (mq) {
 					if (str[l] === ',') {
@@ -489,11 +506,12 @@
 					length: m[0].length + p
 				};
 			} catch (e) { }
-		} else if (m = str.match(/^((?:Eval|Range|Reference|Syntax|Type|URI)?Error|(?:Async)?(?:Generator)?Function)\(/)) {
+		} else if (m = str.match(/^(?:((?:Eval|Range|Reference|Syntax|Type|URI)?Error|Function)|(?:(\(async ?\( ?\) ?=> ?\{ ?\}\))|(async )?function\* ?\( ?\) ?\{ ?\})\.constructor)\(/)) {
 			l = m[0].length;
+			let c = m[1] ? globalThis[m[1]] : m[2] ? (async () => { }).constructor : m[3] ? async function* () { }.constructor : function* () { }.constructor;
 			if (str[l] === ')') {
 				r = {
-					value: globalThis[m[1]](),
+					value: c(),
 					length: l + p + 1
 				};
 			} else {
@@ -502,7 +520,7 @@
 					l += n.length;
 					if (str[l] === ')') {
 						r = {
-							value: globalThis[m[1]](n.value),
+							value: c(n.value),
 							length: l + p + 1
 						};
 					} else if (str[l] === ',') {
@@ -512,7 +530,7 @@
 							l += b.length;
 							if (str[l] === ')') {
 								r = {
-									value: globalThis[m[1]](n.value, b.value),
+									value: c(n.value, b.value),
 									length: l + p + 1
 								};
 							}
@@ -522,89 +540,5 @@
 			}
 		}
 		return r;
-	};
-
-	//reference types are the names of their constructor, such as String, Uint8Array, AsyncFunction
-	//primitive types are lowercased, such as string, bigint, null
-	globalThis.dataType = data => {
-		if (data == null) {
-			return String(data);
-		} else {
-			let t = typeof data;
-			if (['function', 'object'].indexOf(t) >= 0) {
-				t = Object.prototype.toString.call(data);
-				t = t.substring(8, t.length - 1);
-			}
-			return t;
-		}
-	};
-
-	//serialize to jsex
-	//sorting: whether sorting keys in Map, Set and Object
-	//jsonCompatible: whether generate JSON compatible string. this argument makes sance only if data doesn't contain extended types
-	//debug: whether throw error when meet unexpected data
-	globalThis.toJsex = (data, sorting, jsonCompatible, debug) => realToJsex(data, new Set(), sorting, jsonCompatible, debug);
-
-	//isEqual returns true if toJsex(o1, true) === toJsex(o2, true)
-	//note: -0 does not equal to 0
-	globalThis.isEqual = (o1, o2) => {
-		if (Object.is(o1, o2)) {
-			return true;
-		} else {
-			const types = ['undefined', 'null', 'boolean', 'string', 'number', 'bigint', 'Date', 'RegExp', 'Error', 'symbol', 'Function', 'AsyncFunction', 'GeneratorFunction', 'AsyncGeneratorFunction', 'Map', 'Set'],
-				d1 = dataType(o1),
-				d2 = dataType(o2),
-				t1 = types.indexOf(d1),
-				t2 = types.indexOf(d2);
-			let v;
-			if (t1 < 0 && typeof o1.valueOf === 'function' && o1 !== (v = o1.valueOf())) {
-				return isEqual(v, o2);
-			} else if (t2 < 0 && typeof o2.valueOf === 'function' && o2 !== (v = o2.valueOf())) {
-				return isEqual(o1, v);
-			} else if (t1 > 5) {
-				if (t1 === t2) {
-					if (t1 === 6) {
-						return o1.getTime() === o2.getTime();
-					} else if (t1 === 7) {
-						return o1.toString() === o2.toString();
-					} else if (t1 === 8) {
-						if (o1.name === o2.name && o1.message === o2.message) {
-							return o1.name === 'AggregateError' ? Array.isArray(o1.errors) && Array.isArray(o2.errors) && isEqual(o1.errors, o2.errors) : true;
-						}
-					} else if (t1 > 13) {
-						return o1.size === o2.size && toJsex(o1, true) === toJsex(o2, true);
-					} else {
-						return toJsex(o1, true) === toJsex(o2, true);
-					}
-				}
-			} else if (t1 < 0 && t2 < 0) {
-				const a1 = arrays.indexOf(d1) >= 0,
-					a2 = arrays.indexOf(d2) >= 0;
-				if (a1 && a2) {
-					if (o1.length === o2.length) {
-						for (let i = 0; i < o1.length; i++) {
-							if (!isEqual(o1[i], o2[i])) {
-								return false;
-							}
-						}
-						return true;
-					}
-				} else if (!a1 && !a2) {
-					let m = Object.getOwnPropertyNames(o1);
-					v = Object.getOwnPropertyNames(o2);
-					if (m.length === v.length) {
-						for (let i = 0; i < m.length; i++) {
-							if (!hasOwnProperty.call(o2, m[i]) || !isEqual(o1[m[i]], o2[m[i]])) {
-								return false;
-							}
-						}
-						m = Object.getOwnPropertySymbols(o1);
-						v = Object.getOwnPropertySymbols(o2);
-						return m.length === v.length && isEqual(m.map(n => toJsex([n, o1[n]], true)).sort(), v.map(n => toJsex([n, o2[n]], true)).sort());
-					}
-				}
-			}
-		}
-		return false;
 	};
 })();
