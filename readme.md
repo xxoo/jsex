@@ -38,7 +38,8 @@ try {
 } catch(e) {
   console.log('error: jsonCompatible makes sense only if data does not contain extended types');
 }
-
+```
+```javascript
 let obj = {
     ["__proto__"]: '\v',
     "tab": "\t"
@@ -46,7 +47,7 @@ let obj = {
   jsonstr = JSON.stringify(obj),
   jsexstr = toJsex(obj);
 console.log('jsexstr:', jsexstr, '\njsonstr:', jsonstr);
-//jsexstr: {"__proto__":null,["__proto__"]:"","tab":"	"} 
+//jsexstr: {"__proto__":null,["__proto__"]:"","tab":"	"}
 //jsonstr: {"__proto__":"\u000b","tab":"\t"}
 console.log('is compatible:', toJsex(obj, {jsonCompatible: true}) === jsonstr);
 //is compatible: true

@@ -1,9 +1,8 @@
-//jsex version: 1.0.10
+//jsex version: 1.0.11
 //https://github.com/xxoo/jsex
 (() => {
 	'use strict';
-	const arrays = ['Array', 'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array'],
-		blanklength = str => str.match(/^(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/)[0].length,
+	const blanklength = str => str.match(/^(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/)[0].length,
 		//assume a function has no syntax error, then we can use some ugly detection to seek out the end of its params
 		paramlength = (s, infor) => {
 			let e, isfor,
@@ -95,7 +94,7 @@
 							s = s.length > 8 ? s.substring(7, s.length - 1) : '';
 						}
 						if (!(t = s.match(/^Symbol\.([\w$][\d\w$]*)$/)) || Symbol[t[1]] !== data) {
-							s = s ? 'Symbol(' + strEncode(s) + ')' : 'Symbol()';
+							s = 'Symbol(' + (s ? strEncode(s) : '') + ')';
 						}
 					}
 				} else if (t === 'function') {
@@ -106,10 +105,10 @@
 						if (debug) throw TypeError('unable to serialize native function');
 					} else {
 						//these constructors are not global by default
-						const e = {
-							AsyncFunction: '(async()=>{})',
-							GeneratorFunction: 'function*(){}',
-							AsyncGeneratorFunction: 'async function*(){}'
+						const c = {
+							AsyncFunction: '(async()=>{}).constructor',
+							GeneratorFunction: 'function*(){}.constructor',
+							AsyncGeneratorFunction: 'async function*(){}.constructor'
 						};
 						t = getRealType(data);
 						if (t[0] === 'A') {
@@ -126,7 +125,7 @@
 						}
 						v = v.substring(blanklength(v)).replace(/^=>(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/, '');
 						v = v[0] === '{' ? v.replace(/^\{\s*|\s*\}$/g, '') : 'return ' + v;
-						s = (t in e ? e[t] + '.constructor' : 'Function') + (v ? `(${s ? strEncode(s) + ',' : ''}${strEncode(v)})` : '()');
+						s = (t in c ? c[t] : 'Function') + (v ? `(${s ? strEncode(s) + ',' : ''}${strEncode(v)})` : '()');
 					}
 				} else {
 					t = getRealType(data);
@@ -135,7 +134,7 @@
 					} else if (t === 'Date') {
 						s = 'new Date(' + data.getTime() + ')';
 					} else if (t === 'Error' && data.name !== 'AggregateError') {
-						s = (['EvalError', 'RangeError', 'ReferenceError', 'SyntaxError', 'TypeError', 'URIError'].indexOf(data.name) < 0 ? 'Error' : data.name) + '(';
+						s = (['EvalError', 'RangeError', 'ReferenceError', 'SyntaxError', 'TypeError', 'URIError'].indexOf(data.name) < 0 ? t : data.name) + '(';
 						if (data.message) {
 							s += strEncode(data.message);
 						}
@@ -144,16 +143,7 @@
 						if (debug) throw TypeError('circular structure detected');
 					} else {
 						log.add(data);
-						if (arrays.indexOf(t) >= 0) {
-							let c = [];
-							for (let i = 0; i < data.length; i++) {
-								let v = realToJsex(data[i], log, sorting, jsonCompatible, debug);
-								if (v !== undefined) {
-									c.push(v);
-								}
-							}
-							s = '[' + c.join(',') + ']';
-						} else if (t === 'Map') {
+						if (t === 'Map') {
 							let c = [];
 							for (let n of data) {
 								let v = realToJsex(n[0], log, sorting, jsonCompatible, debug);
@@ -190,6 +180,15 @@
 							} else if (debug) {
 								throw TypeError('bad AggregateError');
 							}
+						} else if (['Array', 'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array'].indexOf(t) >= 0) {
+							let c = [];
+							for (let i = 0; i < data.length; i++) {
+								let v = realToJsex(data[i], log, sorting, jsonCompatible, debug);
+								if (v !== undefined) {
+									c.push(v);
+								}
+							}
+							s = '[' + c.join(',') + ']';
 						} else if (typeof data.valueOf === 'function' && data !== (t = data.valueOf())) {
 							s = realToJsex(t, log, sorting, jsonCompatible, debug);
 						} else {
