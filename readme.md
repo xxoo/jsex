@@ -1,5 +1,5 @@
 ## What is jsex?
-jsex is an extended JSON format which supports most of native javascript data types.
+jsex is a strict subset of javascript for data serialization/deserialization, which supports most of native javascript data types.
 
 
 ## How many data types does jsex support?
@@ -21,7 +21,7 @@ As many as possible, including:
 By calling `toJsex(data, options = {sorting: false, jsonCompatible: false, debug: false})`.
 * `sorting`: Whether sorting the content of `Map`, `Set` and `Object`.
 * `jsonCompatible`: Whether generating JSON compatible string.
-* `debug`: Whether throw error when meet unexpected data.
+* `debug`: Whether throw error when meet unexpected data or just skip them silently.
 ```javascript
 require('jsex');
 let data = {
