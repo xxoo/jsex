@@ -1,4 +1,4 @@
-//jsex version: 1.0.11
+//jsex version: 1.0.12
 //https://github.com/xxoo/jsex
 (() => {
 	'use strict';
@@ -39,7 +39,7 @@
 			return i + 1;
 		},
 		strEncode = (str, jsonCompatible) => {
-			return '"' + str.replace(jsonCompatible ? /[\ud800-\udbff][\udc00-\udfff]|[\\"\x00-\x1f\ud800-\udfff]/g : /[\ud800-\udbff][\udc00-\udfff]|[\r\n\\"\ud800-\udfff]/g, a => {
+			return '"' + str.replace(jsonCompatible ? /[\ud800-\udbff][\udc00-\udfff]|[\\"\0-\37\ud800-\udfff]/g : /[\ud800-\udbff][\udc00-\udfff]|[\r\n\\"\ud800-\udfff]/g, a => {
 				if (a.length === 1) {
 					if (a === '\\') {
 						return '\\\\';
@@ -57,7 +57,7 @@
 						return '\\r';
 					} else {
 						let c = a.charCodeAt(0);
-						return '\\u' + (c < 16 ? '000' : c < 256 ? '00' : c < 4096 ? '0' : '') + c.toString(16);
+						return '\\u' + (c < 16 ? '000' : c < 256 ? '00' : '') + c.toString(16);
 					}
 				} else {
 					return a;
@@ -181,23 +181,21 @@
 								throw TypeError('bad AggregateError');
 							}
 						} else if (['Array', 'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array'].indexOf(t) >= 0) {
-							let c = [];
+							s = '[';
 							for (let i = 0; i < data.length; i++) {
-								let v = realToJsex(data[i], log, sorting, jsonCompatible, debug);
-								if (v !== undefined) {
-									c.push(v);
+								if (i > 0) {
+									s += ',';
 								}
+								let v = realToJsex(data[i], log, sorting, jsonCompatible, debug);
+								s += jsonCompatible && v === undefined ? 'null' : v;
 							}
-							s = '[' + c.join(',') + ']';
+							s += ']';
 						} else if (typeof data.valueOf === 'function' && data !== (t = data.valueOf())) {
 							s = realToJsex(t, log, sorting, jsonCompatible, debug);
 						} else {
 							let c = [],
 								n = Object.getOwnPropertyNames(data),
 								m = Object.getOwnPropertySymbols(data);
-							if (!jsonCompatible) {
-								c.push('"__proto__":null');
-							}
 							for (let i = 0; i < n.length; i++) {
 								let v = realToJsex(data[n[i]], log, sorting, jsonCompatible, debug);
 								if (v !== undefined) {
@@ -215,7 +213,18 @@
 								c.sort();
 								n.sort();
 							}
-							s = '{' + c.join(',') + (c.length && n.length ? ',' : '') + n.join(',') + '}';
+							s = '{';
+							if (!jsonCompatible) {
+								s += '"__proto__":null';
+								if (c.length || n.length) {
+									s += ',';
+								}
+							}
+							s += c.join(',');
+							if (c.length && n.length) {
+								s += ',';
+							}
+							s += n.join(',') + '}';
 						}
 						log.delete(data);
 					}

@@ -21,7 +21,7 @@ As many as possible, including:
 By calling `toJsex(data, options = {sorting: false, jsonCompatible: false, debug: false})`.
 * `sorting`: Whether sorting the content of `Map`, `Set` and `Object`.
 * `jsonCompatible`: Whether generating JSON compatible string.
-* `debug`: Whether throw error when meet unexpected data
+* `debug`: Whether throw error when meet unexpected data.
 ```javascript
 require('jsex');
 let data = {
@@ -95,7 +95,7 @@ Yes, comments are allowed. But not on everywhere. Such as `-/*123*/4` is invalid
 Yes, there are a few more differences.
 * `0` and `-0` are different in jsex.
 * `Object` has no prototype, which means it is safe to use any key name.
-* `toJsex` does not do unnecessary string escape when `jsonCompatible` is `false`.
+* `toJsex` does not escape ASCII control characters (except `\r` and `\n`) by detault.
 * `toJsex` does not skip unenumerable keys and symbol keys in `Object`.
 * `toJsex` use `valueOf` rather then `toJSON` to serialize custom data types.
 
