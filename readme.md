@@ -1,5 +1,5 @@
 ## What is jsex?
-jsex is a strict subset of javascript for data serialization/deserialization, which supports most of native javascript data types.
+jsex is a strict subset of javascript for data serialization/deserialization, which supports most of the native javascript data types.
 
 
 ## How many data types does jsex support?

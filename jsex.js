@@ -1,4 +1,4 @@
-//jsex version: 1.0.12
+//jsex version: 1.0.13
 //https://github.com/xxoo/jsex
 (() => {
 	'use strict';
@@ -38,29 +38,37 @@
 			}
 			return i + 1;
 		},
-		strEncode = (str, jsonCompatible) => {
-			return '"' + str.replace(jsonCompatible ? /[\ud800-\udbff][\udc00-\udfff]|[\\"\0-\37\ud800-\udfff]/g : /[\ud800-\udbff][\udc00-\udfff]|[\r\n\\"\ud800-\udfff]/g, a => {
-				if (a.length === 1) {
-					if (a === '\\') {
-						return '\\\\';
-					} else if (a === '"') {
-						return '\\"';
-					} else if (a === '\b') {
-						return '\\b';
-					} else if (a === '\t') {
-						return '\\t';
-					} else if (a === '\n') {
-						return '\\n';
-					} else if (a === '\f') {
-						return '\\f';
-					} else if (a === '\r') {
-						return '\\r';
-					} else {
-						let c = a.charCodeAt(0);
-						return '\\u' + (c < 16 ? '000' : c < 256 ? '00' : '') + c.toString(16);
+		strEncode = str => {
+			return '"' + str.replace(/[\ud800-\udbff][\udc00-\udfff]|([\ud800-\udfff])|([\r\n\\"])/g, (p0, p1, p2) => {
+				if (p1) {
+					return '\\u' + p1.charCodeAt(0).toString(16);
+				} else if (p2) {
+					switch (p2) {
+						case '\n': return '\\n';
+						case '\r': return '\\r';
+						default: return '\\' + p2;
 					}
 				} else {
-					return a;
+					return p0;
+				}
+			}) + '"';
+		},
+		strEncodeJson = str => {
+			return '"' + str.replace(/[\ud800-\udbff][\udc00-\udfff]|([\ud800-\udfff\0-\37\\"])/g, (p0, p1) => {
+				if (p1) {
+					switch (p1) {
+						case '\n': return '\\n';
+						case '\r': return '\\r';
+						case '\t': return '\\t';
+						case '\\': case '"': return '\\' + p1;
+						case '\b': return '\\b';
+						case '\f': return '\\f';
+						default:
+							let c = p1.charCodeAt(0);
+							return '\\u' + (c < 16 ? '000' : c < 256 ? '00' : '') + c.toString(16);
+					}
+				} else {
+					return p0;
 				}
 			}) + '"';
 		},
@@ -77,7 +85,7 @@
 				if (t === 'boolean') {
 					s = data.toString();
 				} else if (t === 'string') {
-					s = strEncode(data, jsonCompatible);
+					s = jsonCompatible ? strEncodeJson(data) : strEncode(data);
 				} else if (t === 'number') {
 					s = Object.is(data, -0) ? '-0' : data.toString();
 				} else if (t === 'bigint') {
@@ -130,7 +138,7 @@
 				} else {
 					t = getRealType(data);
 					if (t === 'RegExp') {
-						s = data.toString();
+						s = data.toString().replace(/[\ud800-\udbff][\udc00-\udfff]|([\ud800-\udfff])/g, (p0, p1) => p1 ? '\\u' + p1.charCodeAt(0).toString(16) : p0);
 					} else if (t === 'Date') {
 						s = 'new Date(' + data.getTime() + ')';
 					} else if (t === 'Error' && data.name !== 'AggregateError') {
@@ -199,7 +207,7 @@
 							for (let i = 0; i < n.length; i++) {
 								let v = realToJsex(data[n[i]], log, sorting, jsonCompatible, debug);
 								if (v !== undefined) {
-									c.push((!jsonCompatible && n[i] === '__proto__' ? '["__proto__"]' : strEncode(n[i], jsonCompatible)) + ':' + v);
+									c.push((jsonCompatible ? strEncodeJson(n[i]) : n[i] === '__proto__' ? '["__proto__"]' : strEncode(n[i])) + ':' + v);
 								}
 							}
 							n = [];
