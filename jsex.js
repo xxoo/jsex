@@ -1,4 +1,4 @@
-//jsex version: 1.0.14
+//jsex version: 1.0.15
 //https://github.com/xxoo/jsex
 (() => {
 	'use strict';
@@ -306,7 +306,7 @@
 				};
 			}
 		} else if (str.substring(0, l = 15) === 'AggregateError(') {
-			let n = str.substring(l).parseJsex();
+			let n = str.substring(l).parseJsex(allowImplicitMethods);
 			if (n && Array.isArray(n.value)) {
 				l += n.length;
 				if (str[l] === ',') {
@@ -331,7 +331,7 @@
 		} else if (str.substring(0, l = 7) === 'new Set') {
 			if (str[l] === '(') {
 				l += 1;
-				m = str.substring(l).parseJsex();
+				m = str.substring(l).parseJsex(allowImplicitMethods);
 				if (m && Array.isArray(m.value) && str[l += m.length] === ')') {
 					r = {
 						value: new Set(m.value),
@@ -347,15 +347,15 @@
 		} else if (str.substring(0, l = 7) === 'new Map') {
 			if (str[l] === '(') {
 				l += 1;
-				m = str.substring(l).parseJsex();
+				m = str.substring(l).parseJsex(allowImplicitMethods);
 				if (m && Array.isArray(m.value) && str[l += m.length] === ')') {
 					for (let i = 0; i < m.value.length; i++) {
 						if (!Array.isArray(m.value[i]) || m.value[i].length !== 2) {
-							m.e = true;
+							m = undefined;
 							break;
 						}
 					}
-					if (!m.e) {
+					if (m) {
 						r = {
 							value: new Map(m.value),
 							length: l + p + 1
@@ -423,7 +423,7 @@
 						continue;
 					}
 				} else if (ml) {
-					mf = str.substring(l).parseJsex();
+					mf = str.substring(l).parseJsex(allowImplicitMethods);
 					if (mf) {
 						l += mf.length;
 						l += blanklength(str.substring(l));
@@ -465,7 +465,7 @@
 						mm = mm ? mf.value === '__proto__' ? null : mf.value : mf.value[0];
 						if (str[l] === ':') {
 							l += 1;
-							mf = str.substring(l).parseJsex();
+							mf = str.substring(l).parseJsex(allowImplicitMethods);
 							if (mf) {
 								l += mf.length;
 								l += blanklength(str.substring(l));
