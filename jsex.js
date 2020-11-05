@@ -1,13 +1,18 @@
-//jsex version: 1.0.13
+//jsex version: 1.0.14
 //https://github.com/xxoo/jsex
 (() => {
 	'use strict';
 	const blanklength = str => str.match(/^(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/)[0].length,
-		//assume a function has no syntax error, then we can use some ugly detection to seek out the end of its params
-		paramlength = (s, infor) => {
+		//assume a function has no syntax error, then we can use some ugly detection to seek out the end of its name or params
+		//t = 0 for name, t = 1 for params
+		sectionlength = (s, t, infor) => {
+			const p = [
+				['[', ']', '!~+-*=<>|&{}?:,;(', /^[\d\w$.]+|[!~+\-*=<>|&{}()?:,;]+/],
+				['(', ')', '!~+-*=<>|&{}?:,;[', /^[\d\w$.]+|[!~+\-*=<>|&{}[\]?:,;]+/]
+			][t];
 			let e, isfor,
 				i = blanklength(s.substring(1)) + 1;
-			while (s[i] !== ')') {
+			while (s[i] !== p[1]) {
 				if (s[i] === '/') {
 					if (e) {
 						i++;
@@ -25,14 +30,14 @@
 				} else if (s[i] === '`') {
 					i += s.substring(i).match(/^`(?:[^`\\]|\\[\s\S])*`/)[0].length;
 					e = true;
-				} else if (s[i] === '(') {
-					i += paramlength(s.substring(i), isfor);
+				} else if (s[i] === p[0]) {
+					i += sectionlength(s.substring(i), t, isfor);
 					e = true;
 				} else {
-					let m = s.substring(i).match(/^[\d\w$.]+|[!~+\-*=<>|&{}[\]?:,;]+/);
+					let m = s.substring(i).match(p[3]);
 					isfor = m[0] === 'for' || isfor && m[0] === 'await';
 					i += m[0].length;
-					e = infor && m[0] === 'of' ? false : ['extends', 'yield', 'await', 'new', 'delete', 'void', 'typeof', 'case', 'throw', 'return', 'in', 'else', 'do'].indexOf(m[0]) < 0 && '!~+-*=<>|&{}[?:,;'.indexOf(s[i - 1]) < 0;
+					e = infor && m[0] === 'of' ? false : ['extends', 'yield', 'await', 'new', 'delete', 'void', 'typeof', 'case', 'throw', 'return', 'in', 'else', 'do'].indexOf(m[0]) < 0 && p[2].indexOf(s[i - 1]) < 0;
 				}
 				i += blanklength(s.substring(i));
 			}
@@ -122,9 +127,15 @@
 						if (t[0] === 'A') {
 							v = v.replace(/^async(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/, '');
 						}
-						v = v.replace(/^(?:function(?![\d\w$])(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*)?(?:\*(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*)?(?:[\w$][\d\w$]*(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*(?=\())?/, '');
+						v = v.replace(/^(?:function(?![\d\w$])(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*)?(?:\*(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*)?/, '');
+						if (v[0] === '[') {
+							v = v.substring(sectionlength(v, 0));
+							v = v.substring(blanklength(v));
+						} else {
+							v = v.replace(/(?:[\w$][\d\w$]*(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*(?=\())?/, '');
+						}
 						if (v[0] === '(') {
-							let l = paramlength(v);
+							let l = sectionlength(v, 1);
 							s = v.substring(0, l).replace(/^\(\s*|\s*\)$/g, '');
 							v = v.substring(l);
 						} else {
@@ -241,9 +252,13 @@
 			return s;
 		};
 
-	//we want globalThis
+	//we just want globalThis
 	if (typeof globalThis === 'undefined') {
-		self.globalThis = self;
+		if (typeof self === 'undefined') {
+			global.globalThis = global;
+		} else {
+			self.globalThis = self;
+		}
 	}
 
 	//serialize to jsex
@@ -253,7 +268,7 @@
 	globalThis.toJsex = (data, options = {}) => realToJsex(data, new Set(), options.sorting, options.jsonCompatible, options.debug);
 
 	//deserialize jsex, support JSON string
-	String.prototype.parseJsex = function () {
+	String.prototype.parseJsex = function (allowImplicitMethods) {
 		let m, l, r,
 			p = blanklength(this),
 			str = this.substring(p);
@@ -454,7 +469,7 @@
 							if (mf) {
 								l += mf.length;
 								l += blanklength(str.substring(l));
-								if (mm !== null) {
+								if (mm !== null && allowImplicitMethods || typeof mf.value !== 'function' || ['toString', 'toJSON', 'valueOf', Symbol.asyncIterator, Symbol.hasInstance, Symbol.iterator, Symbol.matchAll, Symbol.replace, Symbol.search, Symbol.split, Symbol.toPrimitive].indexOf(mm) < 0) {
 									m[mm] = mf.value;
 								}
 								ml = false;

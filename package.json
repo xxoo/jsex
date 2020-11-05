@@ -1,11 +1,8 @@
 {
 	"name": "jsex",
-	"version": "1.0.13",
+	"version": "1.0.14",
 	"description": "jsex is an extended JSON data format",
 	"main": "jsex.js",
-	"engines": {
-		"node": ">= 12.0"
-	},
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/xxoo/jsex.git"
