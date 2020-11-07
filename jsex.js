@@ -81,7 +81,7 @@
 			let t = Object.prototype.toString.call(data);
 			return t.substring(8, t.length - 1);
 		},
-		realToJsex = (data, log, sorting, jsonCompatible, debug) => {
+		realToJsex = (data, log, options) => {
 			let s;
 			if (data == null) {
 				s = String(data);
@@ -90,7 +90,7 @@
 				if (t === 'boolean') {
 					s = data.toString();
 				} else if (t === 'string') {
-					s = jsonCompatible ? strEncodeJson(data) : strEncode(data);
+					s = options.jsonCompatible ? strEncodeJson(data) : strEncode(data);
 				} else if (t === 'number') {
 					s = Object.is(data, -0) ? '-0' : data.toString();
 				} else if (t === 'bigint') {
@@ -113,9 +113,9 @@
 				} else if (t === 'function') {
 					let v = data.toString();
 					if (/^class(?![\d\w$])/.test(v)) {
-						if (debug) throw TypeError('unable to serialize class');
+						if (options.debug) throw TypeError('unable to serialize class');
 					} else if (/\{\s*\[\w+(?: \w+)+\]\s*\}$/.test(v)) {
-						if (debug) throw TypeError('unable to serialize native function');
+						if (options.debug) throw TypeError('unable to serialize native function');
 					} else {
 						//these constructors are not global by default
 						const c = {
@@ -159,15 +159,15 @@
 						}
 						s += ')';
 					} else if (log.has(data)) {
-						if (debug) throw TypeError('circular structure detected');
+						if (options.debug) throw TypeError('circular structure detected');
 					} else {
 						log.add(data);
 						if (t === 'Map') {
 							let c = [];
 							for (let n of data) {
-								let v = realToJsex(n[0], log, sorting, jsonCompatible, debug);
+								let v = realToJsex(n[0], log, options);
 								if (v !== undefined) {
-									let m = realToJsex(n[1], log, sorting, jsonCompatible, debug);
+									let m = realToJsex(n[1], log, options);
 									if (m !== undefined) {
 										c.push('[' + v + ',' + m + ']');
 									}
@@ -177,18 +177,18 @@
 						} else if (t === 'Set') {
 							let c = [];
 							for (let n of data) {
-								let v = realToJsex(n, log, sorting, jsonCompatible, debug);
+								let v = realToJsex(n, log, options);
 								if (v !== undefined) {
 									c.push(v);
 								}
 							}
-							if (sorting) {
+							if (options.sorting) {
 								c.sort();
 							}
 							s = 'new Set' + (c.length ? '([' + c.join(',') + '])' : '');
 						} else if (t === 'Error') {
 							if (Array.isArray(data.errors)) {
-								let v = realToJsex(data.errors, log, sorting, jsonCompatible, debug);
+								let v = realToJsex(data.errors, log, options);
 								if (v !== undefined) {
 									s = 'AggregateError(' + v;
 									if (data.message) {
@@ -196,7 +196,7 @@
 									}
 									s += ')';
 								}
-							} else if (debug) {
+							} else if (options.debug) {
 								throw TypeError('bad AggregateError');
 							}
 						} else if (['Array', 'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array'].indexOf(t) >= 0) {
@@ -205,35 +205,35 @@
 								if (i > 0) {
 									s += ',';
 								}
-								let v = realToJsex(data[i], log, sorting, jsonCompatible, debug);
-								s += jsonCompatible && v === undefined ? 'null' : v;
+								let v = realToJsex(data[i], log, options);
+								s += options.jsonCompatible && v === undefined ? 'null' : v;
 							}
 							s += ']';
-						} else if (typeof data.valueOf === 'function' && data !== (t = data.valueOf())) {
-							s = realToJsex(t, log, sorting, jsonCompatible, debug);
+						} else if (options.implicitConversion && typeof data.valueOf === 'function' && (t = data.valueOf()) !== data) {
+							s = realToJsex(t, log, options);
 						} else {
 							let c = [],
 								n = Object.getOwnPropertyNames(data),
 								m = Object.getOwnPropertySymbols(data);
 							for (let i = 0; i < n.length; i++) {
-								let v = realToJsex(data[n[i]], log, sorting, jsonCompatible, debug);
+								let v = realToJsex(data[n[i]], log, options);
 								if (v !== undefined) {
-									c.push((jsonCompatible ? strEncodeJson(n[i]) : n[i] === '__proto__' ? '["__proto__"]' : strEncode(n[i])) + ':' + v);
+									c.push((options.jsonCompatible ? strEncodeJson(n[i]) : n[i] === '__proto__' ? '["__proto__"]' : strEncode(n[i])) + ':' + v);
 								}
 							}
 							n = [];
 							for (let i = 0; i < m.length; i++) {
-								let v = realToJsex(data[m[i]], log, sorting, jsonCompatible, debug);
+								let v = realToJsex(data[m[i]], log, options);
 								if (v !== undefined) {
 									n.push('[' + realToJsex(m[i]) + ']:' + v);
 								}
 							}
-							if (sorting) {
+							if (options.sorting) {
 								c.sort();
 								n.sort();
 							}
 							s = '{';
-							if (!jsonCompatible) {
+							if (!options.jsonCompatible) {
 								s += '"__proto__":null';
 								if (c.length || n.length) {
 									s += ',';
@@ -263,9 +263,10 @@
 
 	//serialize to jsex
 	//sorting: whether sorting keys in Map, Set and Object
+	//implicitConversion: Whether trying to reslove unrecognized type by calling its valueOf method
 	//jsonCompatible: whether generate JSON compatible string. this argument makes sance only if data doesn't contain extended types
 	//debug: whether throw error when meet unexpected data
-	globalThis.toJsex = (data, options = {}) => realToJsex(data, new Set(), options.sorting, options.jsonCompatible, options.debug);
+	globalThis.toJsex = (data, options = {}) => realToJsex(data, new Set(), options);
 
 	//deserialize jsex, support JSON string
 	String.prototype.parseJsex = function (allowImplicitMethods) {

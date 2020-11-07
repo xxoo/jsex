@@ -1,5 +1,5 @@
 ## What is jsex?
-jsex is a strict subset of javascript for data serialization/deserialization, which supports most of the native javascript data types.
+jsex is a strict subset of javascript for data serialization/deserialization, which can support most of the native javascript data types.
 
 
 ## How many data types does jsex support?
@@ -18,27 +18,30 @@ As many as possible, including:
 
 
 ## How to serialize data?
-By calling `toJsex(data, options = {sorting: false, jsonCompatible: false, debug: false})`.
+By calling `toJsex(data, options = {sorting: false, implicitConversion: false, jsonCompatible: false, debug: false})`.
 * `sorting`: Whether sorting the content of `Map`, `Set` and `Object`.
+* `implicitConversion`: Whether trying to reslove unrecognized type by calling its `valueOf` method.
 * `jsonCompatible`: Whether generating JSON compatible string.
 * `debug`: Whether throw error when meet unexpected data or just skip them silently.
+### serializing example:
 ```javascript
 require('jsex');
 let data = {
-  someRegex: /\w\u2028\w\u2029/ig,
+  someRegex: RegExp('\r\u2028\n\ud800', 'ig'),
   someSet: new Set([a => a, 1, 0n]),
   [Symbol.for('symbolKey')]: 'valueForSymbolKey',
   normalKey: 'valueForNormalKey'
 };
 console.log('normal:', toJsex(data), '\nsorted:', toJsex(data, {sorting: true}));
-//normal: {"__proto__":null,"someRegex":/\w\u2028\w\u2029/gi,"someSet":new Set([Function("a","return a"),1,0n]),"normalKey":"valueForNormalKey",[Symbol.for("symbolKey")]:"valueForSymbolKey"}
-//sorted: {"__proto__":null,"normalKey":"valueForNormalKey","someRegex":/\w\u2028\w\u2029/gi,"someSet":new Set([0n,1,Function("a","return a")]),[Symbol.for("symbolKey")]:"valueForSymbolKey"}
+//normal: {"__proto__":null,"someRegex":/\r\u2028\n\ud800/gi,"someSet":new Set([Function("a","return a"),1,0n]),"normalKey":"valueForNormalKey",[Symbol.for("symbolKey")]:"valueForSymbolKey"}
+//sorted: {"__proto__":null,"normalKey":"valueForNormalKey","someRegex":/\r\u2028\n\ud800/gi,"someSet":new Set([0n,1,Function("a","return a")]),[Symbol.for("symbolKey")]:"valueForSymbolKey"}
 try {
   JSON.parse(toJsex(data, {jsonCompatible: true}));
 } catch(e) {
   console.log('error: jsonCompatible makes sense only if data does not contain extended types');
 }
 ```
+### another serializing example:
 ```javascript
 let obj = {
     ["__proto__"]: '\v',
@@ -57,6 +60,7 @@ console.log('is compatible:', toJsex(obj, {jsonCompatible: true}) === jsonstr);
 ## How to deserialize?
 Basically you can just `eval` the string if you trust the source. However if you don't, use `String.prototype.parseJsex(allowImplicitMethods = false)` instead. This method returns `undefined` if parsing failed, or an `Object` with a `length` key (to store the count of characters parsed in this string) and a `value` key (to store the real result).
 * `allowImplicitMethods`: Whether allow methods that might be called implicitly. Such as `toString` and `valueOf`.
+### deserializing example:
 ```javascript
 //following the above code
 let evalJsex = Function('return ' + jsexstr)(),
@@ -65,10 +69,10 @@ let evalJsex = Function('return ' + jsexstr)(),
   parseJson = JSON.parse(jsonstr),
   parseJsonByJsex = jsonstr.parseJsex().value;
 console.log('evalJsex:', evalJsex, '\nparseJsex:', parseJsex, '\nevalJson:', evalJson, '\nparseJson:', parseJson, '\nparseJsonByJsex:', parseJsonByJsex);
-console.log('is json a subset of javascript:', JSON.stringify(evalJson) === JSON.stringify(parseJson));
-//is json a subset of javascript: false
-console.log('is jsex a subset of javascript:', JSON.stringify(evalJsex) === JSON.stringify(parseJsex) && JSON.stringify(evalJson) === JSON.stringify(parseJsonByJsex));
-//is jsex a subset of javascript: true
+console.log('json is a subset of javascript?', JSON.stringify(evalJson) === JSON.stringify(parseJson));
+//json is a subset of javascript? false
+console.log('jsex is a subset of javascript?', JSON.stringify(evalJsex) === JSON.stringify(parseJsex) && JSON.stringify(evalJson) === JSON.stringify(parseJsonByJsex));
+//jsex is a subset of javascript? true
 ```
 
 
@@ -77,14 +81,25 @@ Yes, but any `__proto__` key of `Object` in JSON string will be ignored. As the 
 
 
 ## How to serialize a `class`?
-`class` is not supported directly. However you can still wrap it with a function.
+`class` is not supported. However you can still wrap it with a function or just use `toString` method.
+
+
+## How to serialize a custom type?
+You can't define custom type. But you can reslove it to a supported type by implanting a `valueOf` method. And then call `toJsex` with `implicitConversion` option set to `true`.
+### custom type example
 ```javascript
-console.log(toJsex(base => class extends base {
-  constructor() {
-    super(...arguments);
+class customType {
+  constructor () {
+    this.args = [...arguments];
   }
-}));
-//Function("base","return class extends base {\n  constructor() {\n    super(...arguments);\n  }\n}")
+  valueOf() {
+    return this.args;
+  }
+}
+let instance1 = new customType(1, 2n, {});
+let jsex = toJsex(instance1, {implicitConversion: true});
+console.log(jsex);
+let instance2 = Reflect.construct(customType, Function('return ' + jsex)());
 ```
 
 
@@ -98,7 +113,6 @@ Yes, there are a few more differences.
 * `Object` has no prototype, which means it is safe to use any key name.
 * `toJsex` does not escape ASCII control characters (except `\r` and `\n`) by detault.
 * `toJsex` does not skip unenumerable keys and symbol keys in `Object`.
-* `toJsex` use `valueOf` rather then `toJSON` to serialize custom data types.
 
 
 ## When should I use jsex?
