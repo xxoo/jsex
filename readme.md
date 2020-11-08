@@ -20,7 +20,7 @@ As many as possible, including:
 ## How to serialize data?
 By calling `toJsex(data, options = {sorting: false, implicitConversion: false, jsonCompatible: false, debug: false})`.
 * `sorting`: Whether sorting the content of `Map`, `Set` and `Object`.
-* `implicitConversion`: Whether trying to reslove unrecognized type by calling its `valueOf` method.
+* `implicitConversion`: Whether trying to resolve unrecognized type by calling its `valueOf` method.
 * `jsonCompatible`: Whether generating JSON compatible string.
 * `debug`: Whether throw error when meet unexpected data or just skip them silently.
 ### serializing example:
@@ -85,8 +85,8 @@ Yes, but any `__proto__` key of `Object` in JSON string will be ignored. As the 
 
 
 ## How to serialize a custom type?
-You can't define custom type. But you can reslove it to a supported type by implanting a `valueOf` method. And then call `toJsex` with `implicitConversion` option set to `true`.
-### custom type example
+You can't define custom type. But you can resolve it to a supported type by implanting a `valueOf` method. And then call `toJsex` with `implicitConversion` option set to `true`.
+### custom type example:
 ```javascript
 class customType {
   constructor () {
