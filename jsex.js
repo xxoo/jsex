@@ -1,4 +1,4 @@
-//jsex version: 1.0.17
+//jsex version: 1.0.18
 //https://github.com/xxoo/jsex
 (() => {
 	'use strict';
@@ -37,7 +37,7 @@
 					let m = s.substring(i).match(p[3]);
 					isfor = m[0] === 'for' || isfor && m[0] === 'await';
 					i += m[0].length;
-					e = infor && m[0] === 'of' ? false : ['extends', 'yield', 'await', 'new', 'delete', 'void', 'typeof', 'case', 'throw', 'return', 'in', 'else', 'do'].indexOf(m[0]) < 0 && p[2].indexOf(s[i - 1]) < 0;
+					e = infor && m[0] === 'of' ? false : ['extends', 'yield', 'await', 'new', 'delete', 'void', 'typeof', 'case', 'throw', 'return', 'in', 'else', 'do', '...'].indexOf(m[0]) < 0 && p[2].indexOf(s[i - 1]) < 0;
 				}
 				i += blanklength(s.substring(i));
 			}
@@ -81,7 +81,7 @@
 			let t = Object.prototype.toString.call(data);
 			return t.substring(8, t.length - 1);
 		},
-		realToJsex = (data, log, options) => {
+		realToJsex = (data, options, log) => {
 			let s;
 			if (data == null) {
 				s = String(data);
@@ -119,6 +119,7 @@
 					} else {
 						//these constructors are not global by default
 						const c = {
+							__proto__: null,
 							AsyncFunction: '(async()=>{}).constructor',
 							GeneratorFunction: 'function*(){}.constructor',
 							AsyncGeneratorFunction: 'async function*(){}.constructor'
@@ -165,9 +166,9 @@
 						if (t === 'Map') {
 							let c = [];
 							for (let n of data) {
-								let v = realToJsex(n[0], log, options);
+								let v = realToJsex(n[0], options, log);
 								if (v !== undefined) {
-									let m = realToJsex(n[1], log, options);
+									let m = realToJsex(n[1], options, log);
 									if (m !== undefined) {
 										c.push('[' + v + ',' + m + ']');
 									}
@@ -177,7 +178,7 @@
 						} else if (t === 'Set') {
 							let c = [];
 							for (let n of data) {
-								let v = realToJsex(n, log, options);
+								let v = realToJsex(n, options, log);
 								if (v !== undefined) {
 									c.push(v);
 								}
@@ -188,7 +189,7 @@
 							s = 'new Set' + (c.length ? '([' + c.join(',') + '])' : '');
 						} else if (t === 'Error') {
 							if (Array.isArray(data.errors)) {
-								let v = realToJsex(data.errors, log, options);
+								let v = realToJsex(data.errors, options, log);
 								if (v !== undefined) {
 									s = 'AggregateError(' + v;
 									if (data.message) {
@@ -205,25 +206,25 @@
 								if (i > 0) {
 									s += ',';
 								}
-								let v = realToJsex(data[i], log, options);
+								let v = realToJsex(data[i], options, log);
 								s += options.jsonCompatible && v === undefined ? 'null' : v;
 							}
 							s += ']';
 						} else if (options.implicitConversion && typeof data.valueOf === 'function' && (t = data.valueOf()) !== data) {
-							s = realToJsex(t, log, options);
+							s = realToJsex(t, options, log);
 						} else {
 							let c = [],
 								n = Object.getOwnPropertyNames(data),
 								m = Object.getOwnPropertySymbols(data);
 							for (let i = 0; i < n.length; i++) {
-								let v = realToJsex(data[n[i]], log, options);
+								let v = realToJsex(data[n[i]], options, log);
 								if (v !== undefined) {
 									c.push((options.jsonCompatible ? strEncodeJson(n[i]) : n[i] === '__proto__' ? '["__proto__"]' : strEncode(n[i])) + ':' + v);
 								}
 							}
 							n = [];
 							for (let i = 0; i < m.length; i++) {
-								let v = realToJsex(data[m[i]], log, options);
+								let v = realToJsex(data[m[i]], options, log);
 								if (v !== undefined) {
 									n.push('[' + realToJsex(m[i]) + ']:' + v);
 								}
@@ -263,10 +264,10 @@
 
 	//serialize to jsex
 	//sorting: whether sorting keys in Map, Set and Object
-	//implicitConversion: Whether trying to reslove unrecognized type by calling its valueOf method
+	//implicitConversion: Whether trying to resolve unrecognized type by calling its valueOf method
 	//jsonCompatible: whether generate JSON compatible string. this argument makes sance only if data doesn't contain extended types
 	//debug: whether throw error when meet unexpected data
-	globalThis.toJsex = (data, options = {}) => realToJsex(data, new Set(), options);
+	globalThis.toJsex = (data, options = { __proto__: null }) => realToJsex(data, options, new Set);
 
 	//deserialize jsex, support JSON string
 	String.prototype.parseJsex = function (allowImplicitMethods) {
@@ -275,35 +276,41 @@
 			str = this.substring(p);
 		if (str.substring(0, l = 4) === 'null') {
 			r = {
-				value: null,
-				length: l + p
+				__proto__: null,
+				length: l + p,
+				value: null
 			};
 		} else if (str.substring(0, l = 9) === 'undefined') {
 			r = {
-				value: undefined,
-				length: l + p
+				__proto__: null,
+				length: l + p,
+				value: undefined
 			};
 		} else if (str.substring(0, l = 3) === 'NaN') {
 			r = {
-				value: NaN,
-				length: l + p
+				__proto__: null,
+				length: l + p,
+				value: NaN
 			};
 		} else if (str.substring(0, l = 4) === 'true') {
 			r = {
-				value: true,
-				length: l + p
+				__proto__: null,
+				length: l + p,
+				value: true
 			};
 		} else if (str.substring(0, l = 5) === 'false') {
 			r = {
-				value: false,
-				length: l + p
+				__proto__: null,
+				length: l + p,
+				value: false
 			};
 		} else if (str.substring(0, l = 9) === 'new Date(') {
 			m = str.substring(l).parseJsex();
 			if (m && typeof m.value === 'number' && str[l += m.length] === ')') {
 				r = {
-					value: new Date(m.value),
-					length: l + p + 1
+					__proto__: null,
+					length: l + p + 1,
+					value: new Date(m.value)
 				};
 			}
 		} else if (str.substring(0, l = 15) === 'AggregateError(') {
@@ -317,15 +324,17 @@
 						l += m.length;
 						if (str[l] === ')') {
 							r = {
-								value: AggregateError(n.value, m.value),
-								length: l + p + 1
+								__proto__: null,
+								length: l + p + 1,
+								value: AggregateError(n.value, m.value)
 							};
 						}
 					}
 				} else if (str[l] === ')') {
 					r = {
-						value: AggregateError(n.value),
-						length: l + p + 1
+						__proto__: null,
+						length: l + p + 1,
+						value: AggregateError(n.value)
 					};
 				}
 			}
@@ -335,14 +344,16 @@
 				m = str.substring(l).parseJsex(allowImplicitMethods);
 				if (m && Array.isArray(m.value) && str[l += m.length] === ')') {
 					r = {
-						value: new Set(m.value),
-						length: l + p + 1
+						__proto__: null,
+						length: l + p + 1,
+						value: new Set(m.value)
 					};
 				}
 			} else {
 				r = {
-					value: new Set,
-					length: l + p
+					__proto__: null,
+					length: l + p,
+					value: new Set
 				};
 			}
 		} else if (str.substring(0, l = 7) === 'new Map') {
@@ -358,15 +369,17 @@
 					}
 					if (m) {
 						r = {
-							value: new Map(m.value),
-							length: l + p + 1
+							__proto__: null,
+							length: l + p + 1,
+							value: new Map(m.value)
 						};
 					}
 				}
 			} else {
 				r = {
-					value: new Map,
-					length: l + p
+					__proto__: null,
+					length: l + p,
+					value: new Map
 				};
 			}
 		} else if (str.substring(0, l = 6) === 'Symbol') {
@@ -374,8 +387,9 @@
 				l += 1;
 				if (str[l] === ')') {
 					r = {
-						value: Symbol(),
-						length: l + p + 1
+						__proto__: null,
+						length: l + p + 1,
+						value: Symbol()
 					};
 				} else {
 					m = str.substring(l).parseJsex();
@@ -383,8 +397,9 @@
 						l += m.length;
 						if (str[l] === ')') {
 							r = {
-								value: Symbol(m.value),
-								length: l + p + 1
+								__proto__: null,
+								length: l + p + 1,
+								value: Symbol(m.value)
 							};
 						}
 					}
@@ -396,15 +411,17 @@
 					l += m.length;
 					if (str[l] === ')') {
 						r = {
-							value: Symbol.for(m.value),
-							length: l + p + 1
+							__proto__: null,
+							length: l + p + 1,
+							value: Symbol.for(m.value)
 						};
 					}
 				}
 			} else if ((m = str.substring(l).match(/^\.([\w$][\d\w$]*)/)) && typeof Symbol[m[1]] === 'symbol') {
 				r = {
-					value: Symbol[m[1]],
-					length: l + p + m[0].length
+					__proto__: null,
+					length: l + p + m[0].length,
+					value: Symbol[m[1]]
 				};
 			}
 		} else if (str[0] === '[') {
@@ -438,8 +455,9 @@
 			}
 			if (!mn) {
 				r = {
-					value: m,
-					length: l + p + 1
+					__proto__: null,
+					length: l + p + 1,
+					value: m
 				};
 			}
 		} else if (str[0] === '{') {
@@ -449,7 +467,7 @@
 				mq = false,
 				mn = false;
 			l = 1;
-			m = Object.create(null);
+			m = { __proto__: null };
 			while (!(mn || (me && str[l] === '}'))) {
 				if (mq) {
 					if (str[l] === ',') {
@@ -484,23 +502,28 @@
 			}
 			if (!mn) {
 				r = {
-					value: m,
-					length: l + p + 1
+					__proto__: null,
+					length: l + p + 1,
+					value: m
 				};
 			}
 		} else if (m = str.match(/^(-?)([1-9]\d*|0(?:[bB][01]+|[oO][0-7]+|[xX][\dA-Fa-f]+)?)n/)) {
 			r = {
-				value: m[1] ? -BigInt(m[2]) : BigInt(m[2]),
-				length: m[0].length + p
+				__proto__: null,
+				length: m[0].length + p,
+				value: m[1] ? -BigInt(m[2]) : BigInt(m[2])
 			};
 		} else if (m = str.match(/^(-?)(Infinity|0(?:[bB][01]+|[oO][0-7]+|[xX][\dA-Fa-f]+)|[1-9](?:\.\d+)?[eE][-+]?[1-9]\d*|(?:[1-9]\d*|0)(?:\.\d+)?)/)) {
 			r = {
-				value: m[1] ? -m[2] : +m[2],
-				length: m[0].length + p
+				__proto__: null,
+				length: m[0].length + p,
+				value: m[1] ? -m[2] : +m[2]
 			};
 		} else if (m = str.match(/^"((?:[^\r\n"\\]|\\(?:\r\n?|[^\r]))*)"/)) {
 			try {
 				r = {
+					__proto__: null,
+					length: m[0].length + p,
 					value: m[1].replace(/\\(?:([0-7]{1,2})|x([\dA-Fa-f]{2})|u(?:([\dA-Fa-f]{4})|\{([\dA-Fa-f]{1,5})\})|(\r\n?|\n)|([^\r\n]))/g, (p0, p1, p2, p3, p4, p5, p6) => {
 						if (p1) {
 							return String.fromCharCode('0o' + p1);
@@ -527,15 +550,15 @@
 						} else {
 							throw SyntaxError('Invalid Unicode escape sequence');
 						}
-					}),
-					length: m[0].length + p
+					})
 				};
 			} catch (e) { }
 		} else if (m = str.match(/^\/(?!\*)((?:[^[/\\\r\n\u2028\u2029]|\\.|\[(?:[^\r\n\u2028\u2029\]\\]|\\.)*\])+)\/(g?i?m?s?u?y?)/)) {
 			try {
 				r = {
-					value: RegExp(m[1], m[2]),
-					length: m[0].length + p
+					__proto__: null,
+					length: m[0].length + p,
+					value: RegExp(m[1], m[2])
 				};
 			} catch (e) { }
 		} else if (m = str.match(/^(?:((?:Eval|Range|Reference|Syntax|Type|URI)?Error|Function)|(?:(\(async ?\( ?\) ?=> ?\{ ?\}\))|(async )?function\* ?\( ?\) ?\{ ?\})\.constructor)\(/)) {
@@ -543,8 +566,9 @@
 			let c = m[1] ? globalThis[m[1]] : m[2] ? (async () => { }).constructor : m[3] ? async function* () { }.constructor : function* () { }.constructor;
 			if (str[l] === ')') {
 				r = {
-					value: c(),
-					length: l + p + 1
+					__proto__: null,
+					length: l + p + 1,
+					value: c()
 				};
 			} else {
 				let n = str.substring(l).parseJsex();
@@ -552,8 +576,9 @@
 					l += n.length;
 					if (str[l] === ')') {
 						r = {
-							value: c(n.value),
-							length: l + p + 1
+							__proto__: null,
+							length: l + p + 1,
+							value: c(n.value)
 						};
 					} else if (str[l] === ',') {
 						l += 1;
@@ -562,8 +587,9 @@
 							l += b.length;
 							if (str[l] === ')') {
 								r = {
-									value: c(n.value, b.value),
-									length: l + p + 1
+									__proto__: null,
+									length: l + p + 1,
+									value: c(n.value, b.value)
 								};
 							}
 						}
