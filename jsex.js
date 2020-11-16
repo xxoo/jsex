@@ -1,16 +1,16 @@
-//jsex version: 1.0.18
+//jsex version: 1.0.19
 //https://github.com/xxoo/jsex
 (() => {
 	'use strict';
 	const blanklength = str => str.match(/^(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/)[0].length,
 		//assume a function has no syntax error, then we can use some ugly detection to seek out the end of its name or params
 		//t = 0 for name, t = 1 for params
-		sectionlength = (s, t, infor) => {
+		sectionlength = (s, t, forof) => {
 			const p = [
-				['[', ']', '!~+-*=<>|&{}?:,;(', /^[\d\w$.]+|[!~+\-*=<>|&{}()?:,;]+/],
-				['(', ')', '!~+-*=<>|&{}?:,;[', /^[\d\w$.]+|[!~+\-*=<>|&{}[\]?:,;]+/]
+				['[', ']', '!~+-*=<>|&{}?:,;(', /^([\d\w$.]+)|[!~+\-*=<>|&{}?:,;()]+/],
+				['(', ')', '!~+-*=<>|&{}?:,;[', /^([\d\w$.]+)|[!~+\-*=<>|&{}?:,;[\]]+/]
 			][t];
-			let e, isfor,
+			let e,
 				i = blanklength(s.substring(1)) + 1;
 			while (s[i] !== p[1]) {
 				if (s[i] === '/') {
@@ -31,13 +31,36 @@
 					i += s.substring(i).match(/^`(?:[^`\\]|\\[\s\S])*`/)[0].length;
 					e = true;
 				} else if (s[i] === p[0]) {
-					i += sectionlength(s.substring(i), t, isfor);
+					i += sectionlength(s.substring(i), t, t && forof === 1 ? 2 : 0);
 					e = true;
 				} else {
 					let m = s.substring(i).match(p[3]);
-					isfor = m[0] === 'for' || isfor && m[0] === 'await';
 					i += m[0].length;
-					e = infor && m[0] === 'of' ? false : ['extends', 'yield', 'await', 'new', 'delete', 'void', 'typeof', 'case', 'throw', 'return', 'in', 'else', 'do', '...'].indexOf(m[0]) < 0 && p[2].indexOf(s[i - 1]) < 0;
+					//we need to detect for...of statement
+					if (forof === 0) {
+						if (m[0] === 'for') {
+							forof = 1;
+						}
+					} else if (forof === 1) {
+						if (m[0] === '(') {
+							forof = 2;
+						} else if (m[0] !== 'await') {
+							forof = 0;
+						}
+					} else if (forof === 2) {
+						if (m[1]) {
+							if (['const', 'let', 'var'].indexOf(m[0]) < 0) {
+								forof = 3;
+							}
+						} else {
+							forof = 0;
+						}
+					} else if (forof === 3) {
+						forof = m[0] === 'of' ? 4 : 0;
+					} else {
+						forof = 0;
+					}
+					e = forof === 4 ? false : ['extends', 'yield', 'await', 'new', 'delete', 'void', 'typeof', 'case', 'throw', 'return', 'in', 'else', 'do', '...'].indexOf(m[0]) < 0 && p[2].indexOf(s[i - 1]) < 0;
 				}
 				i += blanklength(s.substring(i));
 			}
@@ -130,13 +153,13 @@
 						}
 						v = v.replace(/^(?:function(?![\d\w$])(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*)?(?:\*(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*)?/, '');
 						if (v[0] === '[') {
-							v = v.substring(sectionlength(v, 0));
+							v = v.substring(sectionlength(v, 0, 0));
 							v = v.substring(blanklength(v));
 						} else {
 							v = v.replace(/(?:[\w$][\d\w$]*(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*(?=\())?/, '');
 						}
 						if (v[0] === '(') {
-							let l = sectionlength(v, 1);
+							let l = sectionlength(v, 1, 0);
 							s = v.substring(0, l).replace(/^\(\s*|\s*\)$/g, '');
 							v = v.substring(l);
 						} else {
