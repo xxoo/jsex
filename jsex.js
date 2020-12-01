@@ -1,4 +1,4 @@
-//jsex version: 1.0.19
+//jsex version: 1.0.20
 //https://github.com/xxoo/jsex
 (() => {
 	'use strict';
@@ -275,15 +275,6 @@
 			}
 			return s;
 		};
-
-	//we just want globalThis
-	if (typeof globalThis === 'undefined') {
-		if (typeof self === 'undefined') {
-			global.globalThis = global;
-		} else {
-			self.globalThis = self;
-		}
-	}
 
 	//serialize to jsex
 	//sorting: whether sorting keys in Map, Set and Object

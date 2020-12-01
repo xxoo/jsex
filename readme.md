@@ -2,7 +2,7 @@
 jsex is a strict subset of javascript for data serialization/deserialization, which can support most of the native javascript data types.
 
 
-## How many data types does jsex support?
+## How many data types are supported?
 As many as possible, including:
 * All types supported by JSON
 * function
@@ -15,6 +15,10 @@ As many as possible, including:
 * Map
 * Typed Arrays (will be serialized as normal array)
 * Infinity, NaN and undefined
+
+
+## How many browsers are supported?
+It's hard to make a full list. But it's recommanded to compile the source or install some polyfill for your production environment. Since jsex does require some bleeding edge ES features.
 
 
 ## How to serialize data?
