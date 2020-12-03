@@ -1,4 +1,4 @@
-//jsex version: 1.0.21
+//jsex version: 1.0.22
 //https://github.com/xxoo/jsex
 (() => {
 	'use strict';
@@ -49,7 +49,7 @@
 						}
 					} else if (forof === 2) {
 						if (m[1]) {
-							if (['const', 'let', 'var'].indexOf(m[0]) < 0) {
+							if (!['const', 'let', 'var'].includes(m[0])) {
 								forof = 3;
 							}
 						} else {
@@ -60,7 +60,7 @@
 					} else {
 						forof = 0;
 					}
-					e = forof === 4 ? false : ['extends', 'yield', 'await', 'new', 'delete', 'void', 'typeof', 'case', 'throw', 'return', 'in', 'else', 'do', '...'].indexOf(m[0]) < 0 && p[2].indexOf(s[i - 1]) < 0;
+					e = forof === 4 ? false : !['extends', 'yield', 'await', 'new', 'delete', 'void', 'typeof', 'case', 'throw', 'return', 'in', 'else', 'do', '...'].includes(m[0]) && !p[2].includes(s[i - 1]);
 				}
 				i += blanklength(s.substring(i));
 			}
@@ -181,7 +181,7 @@
 					} else if (t === 'Date') {
 						s = 'new Date(' + data.getTime() + ')';
 					} else if (t === 'Error' && data.name !== 'AggregateError') {
-						s = (['EvalError', 'RangeError', 'ReferenceError', 'SyntaxError', 'TypeError', 'URIError'].indexOf(data.name) < 0 ? t : data.name) + '(';
+						s = (['EvalError', 'RangeError', 'ReferenceError', 'SyntaxError', 'TypeError', 'URIError'].includes(data.name) ? data.name : t) + '(';
 						if (data.message) {
 							s += strEncode(data.message);
 						}
@@ -227,7 +227,7 @@
 							} else if (options.debug) {
 								throw TypeError('bad AggregateError');
 							}
-						} else if (['Array', 'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array'].indexOf(t) >= 0) {
+						} else if (['Array', 'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array'].includes(t)) {
 							s = '[';
 							for (let i = 0; i < data.length; ++i) {
 								if (i > 0) {
@@ -502,7 +502,7 @@
 					}
 				} else if (ml) {
 					mf = str.substring(l).parseJsex();
-					if (mf && (mm = typeof mf.value === 'string') || (Array.isArray(mf.value) && mf.value.length === 1 && ['symbol', 'string'].indexOf(typeof mf.value[0]) >= 0)) {
+					if (mf && (mm = typeof mf.value === 'string') || (Array.isArray(mf.value) && mf.value.length === 1 && ['symbol', 'string'].includes(typeof mf.value[0]))) {
 						l += mf.length;
 						l += blanklength(str.substring(l));
 						mm = mm ? mf.value === '__proto__' ? null : mf.value : mf.value[0];
@@ -512,7 +512,7 @@
 							if (mf) {
 								l += mf.length;
 								l += blanklength(str.substring(l));
-								if (mm !== null && allowImplicitMethods || typeof mf.value !== 'function' || ['toString', 'toJSON', 'valueOf', Symbol.asyncIterator, Symbol.hasInstance, Symbol.iterator, Symbol.matchAll, Symbol.replace, Symbol.search, Symbol.split, Symbol.toPrimitive].indexOf(mm) < 0) {
+								if (mm !== null && allowImplicitMethods || typeof mf.value !== 'function' || !['toString', 'toJSON', 'valueOf', Symbol.asyncIterator, Symbol.hasInstance, Symbol.iterator, Symbol.matchAll, Symbol.replace, Symbol.search, Symbol.split, Symbol.toPrimitive].includes(mm)) {
 									m[mm] = mf.value;
 								}
 								ml = false;
@@ -548,7 +548,7 @@
 				r = {
 					__proto__: null,
 					length: m[0].length + p,
-					value: m[1].replace(/\\(?:([0-7]{1,2})|x([\dA-Fa-f]{2})|u(?:([\dA-Fa-f]{4})|\{([\dA-Fa-f]{1,5})\})|(\r\n?|\n)|([^\r\n]))/g, (p0, p1, p2, p3, p4, p5, p6) => {
+					value: m[1].replace(/\\(?:([0-3]?[0-7]{1,2})|x([\dA-Fa-f]{2})|u(?:([\dA-Fa-f]{4})|\{((?:10|[\dA-Fa-f])?[\dA-Fa-f]{1,4})\})|(\r\n?|\n)|([^\r\n]))/g, (p0, p1, p2, p3, p4, p5, p6) => {
 						if (p1) {
 							return String.fromCharCode('0o' + p1);
 						} else if (p2 || p3) {
@@ -569,10 +569,10 @@
 							return '\f';
 						} else if (p6 === 'r') {
 							return '\r';
-						} else if ('ux'.indexOf(p6) < 0) {
-							return p6;
-						} else {
+						} else if ('ux'.includes(p6)) {
 							throw SyntaxError('Invalid Unicode escape sequence');
+						} else {
+							return p6;
 						}
 					})
 				};

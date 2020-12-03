@@ -18,7 +18,7 @@ As many as possible, including:
 
 
 ## How many browsers are supported?
-It's hard to make a full list. But jsex does require some bleeding edge ES features. So you probably need to compile the source or install some polyfill for your production environment.
+It's hard to make a full list. But jsex requires some bleeding edge ES features. In order to make sure it works, you probably need to install some polyfill for your production environment. I personally suggest [polyfill.io](https://polyfill.io/v3/polyfill.min.js?features=es2016%2Ces2017%2Ces2018%2Ces2019%2CString.fromCodePoint%2CglobalThis&flags=always,gated)
 
 
 ## How to serialize data?
@@ -54,7 +54,7 @@ let obj = {
   jsonstr = JSON.stringify(obj),
   jsexstr = toJsex(obj);
 console.log('jsexstr:', jsexstr, '\njsonstr:', jsonstr);
-//jsexstr: {"__proto__":null,["__proto__"]:"","tab":"	"}
+//jsexstr: {["__proto__"]:"","tab":"	","__proto__":null}
 //jsonstr: {"__proto__":"\u000b","tab":"\t"}
 console.log('is compatible:', toJsex(obj, {jsonCompatible: true}) === jsonstr);
 //is compatible: true
