@@ -1,9 +1,9 @@
-//jsex version: 1.0.20
+//jsex version: 1.0.21
 //https://github.com/xxoo/jsex
 (() => {
 	'use strict';
 	const blanklength = str => str.match(/^(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/)[0].length,
-		//assume a function has no syntax error, then we can use some ugly detection to seek out the end of its name or params
+		//assume a function has no syntax error, then we can use some imrigorous detection to seek out the end of its name or params
 		//t = 0 for name, t = 1 for params
 		sectionlength = (s, t, forof) => {
 			const p = [
@@ -15,7 +15,7 @@
 			while (s[i] !== p[1]) {
 				if (s[i] === '/') {
 					if (e) {
-						i++;
+						++i;
 						e = false;
 					} else {
 						i += s.substring(i).match(/^\/(?!\*)(?:[^[/\\\r\n\u2028\u2029]|\\.|\[(?:[^\r\n\u2028\u2029\]\\]|\\.)*\])+\//)[0].length;
@@ -34,7 +34,7 @@
 					i += sectionlength(s.substring(i), t, t && forof === 1 ? 2 : 0);
 					e = true;
 				} else {
-					let m = s.substring(i).match(p[3]);
+					const m = s.substring(i).match(p[3]);
 					i += m[0].length;
 					//we need to detect for...of statement
 					if (forof === 0) {
@@ -92,7 +92,7 @@
 						case '\b': return '\\b';
 						case '\f': return '\\f';
 						default:
-							let c = p1.charCodeAt(0);
+							const c = p1.charCodeAt(0);
 							return '\\u' + (c < 16 ? '000' : c < 256 ? '00' : '') + c.toString(16);
 					}
 				} else {
@@ -101,7 +101,7 @@
 			}) + '"';
 		},
 		getRealType = data => {
-			let t = Object.prototype.toString.call(data);
+			const t = Object.prototype.toString.call(data);
 			return t.substring(8, t.length - 1);
 		},
 		realToJsex = (data, options, log) => {
@@ -135,10 +135,14 @@
 					}
 				} else if (t === 'function') {
 					let v = data.toString();
-					if (/^class(?![\d\w$])/.test(v)) {
-						if (options.debug) throw TypeError('unable to serialize class');
-					} else if (/\{\s*\[\w+(?: \w+)+\]\s*\}$/.test(v)) {
+					if (/\{\s*\[\w+(?: \w+)+\]\s*\}$/.test(v)) {
 						if (options.debug) throw TypeError('unable to serialize native function');
+					} else if (/^class(?![\d\w$])/.test(v)) {
+						if (options.implicitConversion) {
+							s = strEncode(v);
+						} else if (options.debug) {
+							throw TypeError('class is not supported by default');
+						}
 					} else {
 						//these constructors are not global by default
 						const c = {
@@ -159,7 +163,7 @@
 							v = v.replace(/(?:[\w$][\d\w$]*(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*(?=\())?/, '');
 						}
 						if (v[0] === '(') {
-							let l = sectionlength(v, 1, 0);
+							const l = sectionlength(v, 1, 0);
 							s = v.substring(0, l).replace(/^\(\s*|\s*\)$/g, '');
 							v = v.substring(l);
 						} else {
@@ -187,11 +191,11 @@
 					} else {
 						log.add(data);
 						if (t === 'Map') {
-							let c = [];
-							for (let n of data) {
-								let v = realToJsex(n[0], options, log);
+							const c = [];
+							for (const n of data) {
+								const v = realToJsex(n[0], options, log);
 								if (v !== undefined) {
-									let m = realToJsex(n[1], options, log);
+									const m = realToJsex(n[1], options, log);
 									if (m !== undefined) {
 										c.push('[' + v + ',' + m + ']');
 									}
@@ -199,9 +203,9 @@
 							}
 							s = 'new Map' + (c.length ? '([' + c.join(',') + '])' : '');
 						} else if (t === 'Set') {
-							let c = [];
-							for (let n of data) {
-								let v = realToJsex(n, options, log);
+							const c = [];
+							for (const n of data) {
+								const v = realToJsex(n, options, log);
 								if (v !== undefined) {
 									c.push(v);
 								}
@@ -212,7 +216,7 @@
 							s = 'new Set' + (c.length ? '([' + c.join(',') + '])' : '');
 						} else if (t === 'Error') {
 							if (Array.isArray(data.errors)) {
-								let v = realToJsex(data.errors, options, log);
+								const v = realToJsex(data.errors, options, log);
 								if (v !== undefined) {
 									s = 'AggregateError(' + v;
 									if (data.message) {
@@ -225,49 +229,55 @@
 							}
 						} else if (['Array', 'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array'].indexOf(t) >= 0) {
 							s = '[';
-							for (let i = 0; i < data.length; i++) {
+							for (let i = 0; i < data.length; ++i) {
 								if (i > 0) {
 									s += ',';
 								}
-								let v = realToJsex(data[i], options, log);
+								const v = realToJsex(data[i], options, log);
 								s += options.jsonCompatible && v === undefined ? 'null' : v;
 							}
 							s += ']';
 						} else if (options.implicitConversion && typeof data.valueOf === 'function' && (t = data.valueOf()) !== data) {
 							s = realToJsex(t, options, log);
 						} else {
-							let c = [],
-								n = Object.getOwnPropertyNames(data),
+							const n = Object.getOwnPropertyNames(data),
 								m = Object.getOwnPropertySymbols(data);
-							for (let i = 0; i < n.length; i++) {
-								let v = realToJsex(data[n[i]], options, log);
-								if (v !== undefined) {
-									c.push((options.jsonCompatible ? strEncodeJson(n[i]) : n[i] === '__proto__' ? '["__proto__"]' : strEncode(n[i])) + ':' + v);
+							let i = 0;
+							while (i < n.length) {
+								const v = realToJsex(data[n[i]], options, log);
+								if (v === undefined) {
+									n.splice(i, 1);
+								} else {
+									n[i] = (options.jsonCompatible ? strEncodeJson(n[i]) : n[i] === '__proto__' ? '["__proto__"]' : strEncode(n[i])) + ':' + v;
+									++i;
 								}
 							}
-							n = [];
-							for (let i = 0; i < m.length; i++) {
-								let v = realToJsex(data[m[i]], options, log);
-								if (v !== undefined) {
-									n.push('[' + realToJsex(m[i]) + ']:' + v);
+							i = 0;
+							while (i < m.length) {
+								const v = realToJsex(data[m[i]], options, log);
+								if (v === undefined) {
+									m.splice(i, 1);
+								} else {
+									m[i] = '[' + realToJsex(m[i]) + ']:' + v;
+									++i;
 								}
 							}
 							if (options.sorting) {
-								c.sort();
 								n.sort();
+								m.sort();
 							}
-							s = '{';
-							if (!options.jsonCompatible) {
-								s += '"__proto__":null';
-								if (c.length || n.length) {
-									s += ',';
-								}
-							}
-							s += c.join(',');
-							if (c.length && n.length) {
+							s = '{' + n.join(',');
+							if (n.length && m.length) {
 								s += ',';
 							}
-							s += n.join(',') + '}';
+							s += m.join(',');
+							if (!options.jsonCompatible) {
+								if (n.length || m.length) {
+									s += ',';
+								}
+								s += '"__proto__":null';
+							}
+							s += '}';
 						}
 						log.delete(data);
 					}
@@ -285,9 +295,9 @@
 
 	//deserialize jsex, support JSON string
 	String.prototype.parseJsex = function (allowImplicitMethods) {
-		let m, l, r,
-			p = blanklength(this),
+		const p = blanklength(this),
 			str = this.substring(p);
+		let m, l, r;
 		if (str.substring(0, l = 4) === 'null') {
 			r = {
 				__proto__: null,
@@ -328,12 +338,12 @@
 				};
 			}
 		} else if (str.substring(0, l = 15) === 'AggregateError(') {
-			let n = str.substring(l).parseJsex(allowImplicitMethods);
+			const n = str.substring(l).parseJsex(allowImplicitMethods);
 			if (n && Array.isArray(n.value)) {
 				l += n.length;
 				if (str[l] === ',') {
 					l += 1;
-					let m = str.substring(l).parseJsex();
+					m = str.substring(l).parseJsex();
 					if (m && typeof m.value === 'string') {
 						l += m.length;
 						if (str[l] === ')') {
@@ -375,8 +385,8 @@
 				l += 1;
 				m = str.substring(l).parseJsex(allowImplicitMethods);
 				if (m && Array.isArray(m.value) && str[l += m.length] === ')') {
-					for (let i = 0; i < m.value.length; i++) {
-						if (!Array.isArray(m.value[i]) || m.value[i].length !== 2) {
+					for (const i of m.value) {
+						if (!Array.isArray(i) || i.length !== 2) {
 							m = undefined;
 							break;
 						}
@@ -577,7 +587,7 @@
 			} catch (e) { }
 		} else if (m = str.match(/^(?:((?:Eval|Range|Reference|Syntax|Type|URI)?Error|Function)|(?:(\(async ?\( ?\) ?=> ?\{ ?\}\))|(async )?function\* ?\( ?\) ?\{ ?\})\.constructor)\(/)) {
 			l = m[0].length;
-			let c = m[1] ? globalThis[m[1]] : m[2] ? (async () => { }).constructor : m[3] ? async function* () { }.constructor : function* () { }.constructor;
+			const c = m[1] ? globalThis[m[1]] : m[2] ? (async () => { }).constructor : m[3] ? async function* () { }.constructor : function* () { }.constructor;
 			if (str[l] === ')') {
 				r = {
 					__proto__: null,
@@ -585,7 +595,7 @@
 					value: c()
 				};
 			} else {
-				let n = str.substring(l).parseJsex();
+				const n = str.substring(l).parseJsex();
 				if (n && typeof n.value === 'string') {
 					l += n.length;
 					if (str[l] === ')') {
@@ -596,7 +606,7 @@
 						};
 					} else if (str[l] === ',') {
 						l += 1;
-						let b = str.substring(l).parseJsex();
+						const b = str.substring(l).parseJsex();
 						if (b && typeof b.value === 'string') {
 							l += b.length;
 							if (str[l] === ')') {

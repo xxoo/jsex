@@ -18,7 +18,7 @@ As many as possible, including:
 
 
 ## How many browsers are supported?
-It's hard to make a full list. But it's recommanded to compile the source or install some polyfill for your production environment. Since jsex does require some bleeding edge ES features.
+It's hard to make a full list. But jsex does require some bleeding edge ES features. So you probably need to compile the source or install some polyfill for your production environment.
 
 
 ## How to serialize data?
@@ -37,8 +37,8 @@ let data = {
   normalKey: 'valueForNormalKey'
 };
 console.log('normal:', toJsex(data), '\nsorted:', toJsex(data, {sorting: true}));
-//normal: {"__proto__":null,"someRegex":/\r\u2028\n\ud800/gi,"someSet":new Set([Function("a","return a"),1,0n]),"normalKey":"valueForNormalKey",[Symbol.for("symbolKey")]:"valueForSymbolKey"}
-//sorted: {"__proto__":null,"normalKey":"valueForNormalKey","someRegex":/\r\u2028\n\ud800/gi,"someSet":new Set([0n,1,Function("a","return a")]),[Symbol.for("symbolKey")]:"valueForSymbolKey"}
+//normal: {"someRegex":/\r\u2028\n\ud800/gi,"someSet":new Set([Function("a","return a"),1,0n]),"normalKey":"valueForNormalKey",[Symbol.for("symbolKey")]:"valueForSymbolKey","__proto__":null}
+//sorted: {"normalKey":"valueForNormalKey","someRegex":/\r\u2028\n\ud800/gi,"someSet":new Set([0n,1,Function("a","return a")]),[Symbol.for("symbolKey")]:"valueForSymbolKey","__proto__":null}
 try {
   JSON.parse(toJsex(data, {jsonCompatible: true}));
 } catch(e) {
@@ -85,12 +85,8 @@ Yes, but any `__proto__` key of `Object` in JSON string will be ignored. As the 
 
 
 ## How to serialize a `class`?
-`class` is not supported. However you can still wrap it with a function or just use `toString` method.
-
-
-## How to serialize a custom type?
-You can't define custom type. But you can resolve it to a supported type by implanting a `valueOf` method. And then call `toJsex` with `implicitConversion` option set to `true`.
-### custom type example:
+For security reason, `class` is not supported by default. But you can still serialize it as `string` by calling `toJsex` with `implicitConversion` option set to `true`.
+### class example:
 ```javascript
 class customType {
   constructor () {
@@ -100,10 +96,23 @@ class customType {
     return this.args;
   }
 }
+let source = toJsex(customType, {implicitConversion: true});
+let deserializedClass = Function('return ' + source.parseJsex().value);
+console.log(deserializedClass.toString() === customType.toString());
+//true
+```
+
+
+## How to serialize a custom type?
+You can't define custom types in jsex. But you can resolve it to a supported type by implanting a `valueOf` method. And then call `toJsex` with `implicitConversion` option set to `true`.
+### custom type example:
+```javascript
+//following the above code
 let instance1 = new customType(1, 2n, {});
 let jsex = toJsex(instance1, {implicitConversion: true});
 console.log(jsex);
-let instance2 = Reflect.construct(customType, Function('return ' + jsex)());
+//[1,2n,{"__proto__":null}]
+let instance2 = Reflect.construct(deserializedClass, jsex.parseJsex().value);
 ```
 
 
