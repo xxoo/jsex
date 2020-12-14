@@ -1,4 +1,4 @@
-//jsex version: 1.0.22
+//jsex version: 1.0.23
 //https://github.com/xxoo/jsex
 (() => {
 	'use strict';
@@ -66,40 +66,45 @@
 			}
 			return i + 1;
 		},
-		strEncode = str => {
-			return '"' + str.replace(/[\ud800-\udbff][\udc00-\udfff]|([\ud800-\udfff])|([\r\n\\"])/g, (p0, p1, p2) => {
-				if (p1) {
-					return '\\u' + p1.charCodeAt(0).toString(16);
-				} else if (p2) {
-					switch (p2) {
-						case '\n': return '\\n';
-						case '\r': return '\\r';
-						default: return '\\' + p2;
-					}
+		escapeStr = str => '"' + str.replace(/[\ud800-\udbff][\udc00-\udfff]|([\ud800-\udfff])|([\r\n\\"])/g, (p0, p1, p2) => {
+			if (p1) {
+				return '\\u' + p1.charCodeAt(0).toString(16);
+			} else if (p2) {
+				return {
+					'"': '\\"',
+					'\n': '\\n',
+					'\r': '\\r',
+					'\\': '\\\\',
+					__proto__: null
+				}[p2];
+			} else {
+				return p0;
+			}
+		}) + '"',
+		escapeStrJson = str => '"' + str.replace(/[\ud800-\udbff][\udc00-\udfff]|([\ud800-\udfff])|([\0-\37\\"])/g, (p0, p1, p2) => {
+			if (p1) {
+				return '\\u' + p1.charCodeAt(0).toString(16);
+			} else if (p2) {
+				const n = {
+					'"': '\\"',
+					'\n': '\\n',
+					'\r': '\\r',
+					'\t': '\\t',
+					'\b': '\\b',
+					'\f': '\\f',
+					'\\': '\\\\',
+					__proto__: null
+				};
+				if (p2 in n) {
+					return n[p2];
 				} else {
-					return p0;
+					const c = p2.charCodeAt(0);
+					return '\\u00' + (c < 16 ? '0' : '') + c.toString(16);
 				}
-			}) + '"';
-		},
-		strEncodeJson = str => {
-			return '"' + str.replace(/[\ud800-\udbff][\udc00-\udfff]|([\ud800-\udfff\0-\37\\"])/g, (p0, p1) => {
-				if (p1) {
-					switch (p1) {
-						case '\n': return '\\n';
-						case '\r': return '\\r';
-						case '\t': return '\\t';
-						case '\\': case '"': return '\\' + p1;
-						case '\b': return '\\b';
-						case '\f': return '\\f';
-						default:
-							const c = p1.charCodeAt(0);
-							return '\\u' + (c < 16 ? '000' : c < 256 ? '00' : '') + c.toString(16);
-					}
-				} else {
-					return p0;
-				}
-			}) + '"';
-		},
+			} else {
+				return p0;
+			}
+		}) + '"',
 		getRealType = data => {
 			const t = Object.prototype.toString.call(data);
 			return t.substring(8, t.length - 1);
@@ -113,7 +118,7 @@
 				if (t === 'boolean') {
 					s = data.toString();
 				} else if (t === 'string') {
-					s = options.jsonCompatible ? strEncodeJson(data) : strEncode(data);
+					s = options.jsonCompatible ? escapeStrJson(data) : escapeStr(data);
 				} else if (t === 'number') {
 					s = Object.is(data, -0) ? '-0' : data.toString();
 				} else if (t === 'bigint') {
@@ -121,7 +126,7 @@
 				} else if (t === 'symbol') {
 					s = Symbol.keyFor(data);
 					if (typeof s === 'string') {
-						s = 'Symbol.for(' + strEncode(s) + ')';
+						s = 'Symbol.for(' + escapeStr(s) + ')';
 					} else {
 						if ('description' in Symbol.prototype) {
 							s = data.description;
@@ -130,7 +135,7 @@
 							s = s.length > 8 ? s.substring(7, s.length - 1) : '';
 						}
 						if (!(t = s.match(/^Symbol\.([\w$][\d\w$]*)$/)) || Symbol[t[1]] !== data) {
-							s = 'Symbol(' + (s ? strEncode(s) : '') + ')';
+							s = 'Symbol(' + (s ? escapeStr(s) : '') + ')';
 						}
 					}
 				} else if (t === 'function') {
@@ -139,17 +144,17 @@
 						if (options.debug) throw TypeError('unable to serialize native function');
 					} else if (/^class(?![\d\w$])/.test(v)) {
 						if (options.implicitConversion) {
-							s = strEncode(v);
+							s = escapeStr(v);
 						} else if (options.debug) {
 							throw TypeError('class is not supported by default');
 						}
 					} else {
 						//these constructors are not global by default
 						const c = {
-							__proto__: null,
 							AsyncFunction: '(async()=>{}).constructor',
 							GeneratorFunction: 'function*(){}.constructor',
-							AsyncGeneratorFunction: 'async function*(){}.constructor'
+							AsyncGeneratorFunction: 'async function*(){}.constructor',
+							__proto__: null
 						};
 						t = getRealType(data);
 						if (t[0] === 'A') {
@@ -172,7 +177,7 @@
 						}
 						v = v.substring(blanklength(v)).replace(/^=>(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/, '');
 						v = v[0] === '{' ? v.replace(/^\{\s*|\s*\}$/g, '') : 'return ' + v;
-						s = (t in c ? c[t] : 'Function') + (v ? `(${s ? strEncode(s) + ',' : ''}${strEncode(v)})` : '()');
+						s = (t in c ? c[t] : 'Function') + (v ? `(${s ? escapeStr(s) + ',' : ''}${escapeStr(v)})` : '()');
 					}
 				} else {
 					t = getRealType(data);
@@ -183,7 +188,7 @@
 					} else if (t === 'Error' && data.name !== 'AggregateError') {
 						s = (['EvalError', 'RangeError', 'ReferenceError', 'SyntaxError', 'TypeError', 'URIError'].includes(data.name) ? data.name : t) + '(';
 						if (data.message) {
-							s += strEncode(data.message);
+							s += escapeStr(data.message);
 						}
 						s += ')';
 					} else if (log.has(data)) {
@@ -220,7 +225,7 @@
 								if (v !== undefined) {
 									s = 'AggregateError(' + v;
 									if (data.message) {
-										s += ',' + strEncode(data.message);
+										s += ',' + escapeStr(data.message);
 									}
 									s += ')';
 								}
@@ -248,7 +253,7 @@
 								if (v === undefined) {
 									n.splice(i, 1);
 								} else {
-									n[i] = (options.jsonCompatible ? strEncodeJson(n[i]) : n[i] === '__proto__' ? '["__proto__"]' : strEncode(n[i])) + ':' + v;
+									n[i] = (options.jsonCompatible ? escapeStrJson(n[i]) : n[i] === '__proto__' ? '["__proto__"]' : escapeStr(n[i])) + ':' + v;
 									++i;
 								}
 							}

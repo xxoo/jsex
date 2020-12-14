@@ -1,7 +1,7 @@
 {
 	"name": "jsex",
-	"version": "1.0.22",
-	"description": "jsex is an extended JSON data format",
+	"version": "1.0.23",
+	"description": "data serialization/deserialization for javascript",
 	"main": "jsex.js",
 	"repository": {
 		"type": "git",
