@@ -13,7 +13,7 @@ As many as possible, including:
 * RegExp
 * Set
 * Map
-* Typed Arrays (will be serialized as normal array)
+* Typed Arrays
 * Infinity, NaN and undefined
 
 

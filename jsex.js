@@ -1,4 +1,4 @@
-//jsex version: 1.0.23
+//jsex version: 1.0.24
 //https://github.com/xxoo/jsex
 (() => {
 	'use strict';
@@ -242,6 +242,9 @@
 								s += options.jsonCompatible && v === undefined ? 'null' : v;
 							}
 							s += ']';
+							if (t !== 'Array') {
+								s = 'new ' + t + '(' + s + ')';
+							}
 						} else if (options.implicitConversion && typeof data.valueOf === 'function' && (t = data.valueOf()) !== data) {
 							s = realToJsex(t, options, log);
 						} else {
@@ -590,6 +593,18 @@
 					value: RegExp(m[1], m[2])
 				};
 			} catch (e) { }
+		} else if (m = str.match(/^new (Int8|Uint8|Uint8Clamped|Int16|Uint16|Int32|Uint32|Float32|Float64|BigInt64|BigUint64)Array\(/)) {
+			l = m[0].length;
+			const f = str.substring(l).parseJsex();
+			if (f && Array.isArray(f.value) && str[l += f.length] === ')') {
+				try {
+					r = {
+						__proto__: null,
+						length: l + p + 1,
+						value: new globalThis[m[1] + 'Array'](f.value)
+					};
+				} catch (e) { }
+			}
 		} else if (m = str.match(/^(?:((?:Eval|Range|Reference|Syntax|Type|URI)?Error|Function)|(?:(\(async ?\( ?\) ?=> ?\{ ?\}\))|(async )?function\* ?\( ?\) ?\{ ?\})\.constructor)\(/)) {
 			l = m[0].length;
 			const c = m[1] ? globalThis[m[1]] : m[2] ? (async () => { }).constructor : m[3] ? async function* () { }.constructor : function* () { }.constructor;
@@ -604,22 +619,26 @@
 				if (n && typeof n.value === 'string') {
 					l += n.length;
 					if (str[l] === ')') {
-						r = {
-							__proto__: null,
-							length: l + p + 1,
-							value: c(n.value)
-						};
+						try {
+							r = {
+								__proto__: null,
+								length: l + p + 1,
+								value: c(n.value)
+							};
+						} catch (e) { }
 					} else if (str[l] === ',') {
 						l += 1;
 						const b = str.substring(l).parseJsex();
 						if (b && typeof b.value === 'string') {
 							l += b.length;
 							if (str[l] === ')') {
-								r = {
-									__proto__: null,
-									length: l + p + 1,
-									value: c(n.value, b.value)
-								};
+								try {
+									r = {
+										__proto__: null,
+										length: l + p + 1,
+										value: c(n.value, b.value)
+									};
+								} catch (e) { }
 							}
 						}
 					}
