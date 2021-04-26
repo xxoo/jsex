@@ -1,4 +1,4 @@
-//jsex version: 1.0.24
+//jsex version: 1.0.25
 //https://github.com/xxoo/jsex
 (() => {
 	'use strict';
@@ -520,7 +520,7 @@
 							if (mf) {
 								l += mf.length;
 								l += blanklength(str.substring(l));
-								if (mm !== null && allowImplicitMethods || typeof mf.value !== 'function' || !['toString', 'toJSON', 'valueOf', Symbol.asyncIterator, Symbol.hasInstance, Symbol.iterator, Symbol.matchAll, Symbol.replace, Symbol.search, Symbol.split, Symbol.toPrimitive].includes(mm)) {
+								if (mm !== null && (allowImplicitMethods || typeof mf.value !== 'function' || !['toString', 'toJSON', 'valueOf', Symbol.asyncIterator, Symbol.hasInstance, Symbol.iterator, Symbol.matchAll, Symbol.replace, Symbol.search, Symbol.split, Symbol.toPrimitive].includes(mm))) {
 									m[mm] = mf.value;
 								}
 								ml = false;
