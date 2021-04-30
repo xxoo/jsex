@@ -62,8 +62,8 @@ console.log('is compatible:', toJsex(obj, {jsonCompatible: true}) === jsonstr);
 
 
 ## How to deserialize?
-Basically you can just `eval` the string if you trust the source. However if you don't, use `String.prototype.parseJsex(allowImplicitMethods = false)` instead. This method returns `undefined` if parsing failed, or an `Object` with a `length` key (to store the count of characters parsed in this string) and a `value` key (to store the real result).
-* `allowImplicitMethods`: Whether allow methods that might be called implicitly. Such as `toString` and `valueOf`.
+Basically you can just `eval` the string if you trust the source. However if you don't, use `String.prototype.parseJsex(disallowedMethods = ['toString', 'toJSON', 'valueOf', Symbol.asyncIterator, Symbol.hasInstance, Symbol.iterator, Symbol.matchAll, Symbol.replace, Symbol.search, Symbol.split, Symbol.toPrimitive])` instead. This method returns `undefined` if parsing failed, or an `Object` with a `length` key (to store the count of characters parsed in this string) and a `value` key (to store the real result).
+* `disallowedMethods`: You probably don't want these methods as they might be called implicitly. Or you may change this param to `null` or another `Array`.
 ### deserializing example:
 ```javascript
 //following the above code
