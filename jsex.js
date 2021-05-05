@@ -1,4 +1,4 @@
-//jsex version: 1.0.26
+//jsex version: 1.0.27
 //https://github.com/xxoo/jsex
 (() => {
 	'use strict';
@@ -302,9 +302,7 @@
 	globalThis.toJsex = (data, options = { __proto__: null }) => realToJsex(data, options, new Set);
 
 	//deserialize jsex, support JSON string
-
-	;
-	String.prototype.parseJsex = function (disallowedMethods = ['toString', 'toJSON', 'valueOf', Symbol.asyncIterator, Symbol.hasInstance, Symbol.iterator, Symbol.matchAll, Symbol.replace, Symbol.search, Symbol.split, Symbol.toPrimitive]) {
+	String.prototype.parseJsex = function (forbiddenMethods = ['toString', 'toJSON', 'valueOf', Symbol.asyncIterator, Symbol.hasInstance, Symbol.iterator, Symbol.matchAll, Symbol.replace, Symbol.search, Symbol.split, Symbol.toPrimitive]) {
 		const p = blanklength(this),
 			str = this.substring(p);
 		let m, l, r;
@@ -339,7 +337,7 @@
 				value: false
 			};
 		} else if (str.substring(0, l = 9) === 'new Date(') {
-			m = str.substring(l).parseJsex(disallowedMethods);
+			m = str.substring(l).parseJsex(forbiddenMethods);
 			if (m && typeof m.value === 'number' && str[l += m.length] === ')') {
 				r = {
 					__proto__: null,
@@ -348,12 +346,12 @@
 				};
 			}
 		} else if (str.substring(0, l = 15) === 'AggregateError(') {
-			const n = str.substring(l).parseJsex(disallowedMethods);
+			const n = str.substring(l).parseJsex(forbiddenMethods);
 			if (n && Array.isArray(n.value)) {
 				l += n.length;
 				if (str[l] === ',') {
 					l += 1;
-					m = str.substring(l).parseJsex(disallowedMethods);
+					m = str.substring(l).parseJsex(forbiddenMethods);
 					if (m && typeof m.value === 'string') {
 						l += m.length;
 						if (str[l] === ')') {
@@ -375,7 +373,7 @@
 		} else if (str.substring(0, l = 7) === 'new Set') {
 			if (str[l] === '(') {
 				l += 1;
-				m = str.substring(l).parseJsex(disallowedMethods);
+				m = str.substring(l).parseJsex(forbiddenMethods);
 				if (m && Array.isArray(m.value) && str[l += m.length] === ')') {
 					r = {
 						__proto__: null,
@@ -393,7 +391,7 @@
 		} else if (str.substring(0, l = 7) === 'new Map') {
 			if (str[l] === '(') {
 				l += 1;
-				m = str.substring(l).parseJsex(disallowedMethods);
+				m = str.substring(l).parseJsex(forbiddenMethods);
 				if (m && Array.isArray(m.value) && str[l += m.length] === ')') {
 					for (const i of m.value) {
 						if (!Array.isArray(i) || i.length !== 2) {
@@ -426,7 +424,7 @@
 						value: Symbol()
 					};
 				} else {
-					m = str.substring(l).parseJsex(disallowedMethods);
+					m = str.substring(l).parseJsex(forbiddenMethods);
 					if (m && typeof m.value === 'string') {
 						l += m.length;
 						if (str[l] === ')') {
@@ -440,7 +438,7 @@
 				}
 			} else if (str.substring(l, l + 5) === '.for(') {
 				l += 5;
-				m = str.substring(l).parseJsex(disallowedMethods);
+				m = str.substring(l).parseJsex(forbiddenMethods);
 				if (m && typeof m.value === 'string') {
 					l += m.length;
 					if (str[l] === ')') {
@@ -475,7 +473,7 @@
 						continue;
 					}
 				} else if (ml) {
-					mf = str.substring(l).parseJsex(disallowedMethods);
+					mf = str.substring(l).parseJsex(forbiddenMethods);
 					if (mf) {
 						l += mf.length;
 						l += blanklength(str.substring(l));
@@ -511,18 +509,18 @@
 						continue;
 					}
 				} else if (ml) {
-					mf = str.substring(l).parseJsex(disallowedMethods);
+					mf = str.substring(l).parseJsex(forbiddenMethods);
 					if (mf && (mm = typeof mf.value === 'string') || (Array.isArray(mf.value) && mf.value.length === 1 && ['symbol', 'string'].includes(typeof mf.value[0]))) {
 						l += mf.length;
 						l += blanklength(str.substring(l));
 						mm = mm ? mf.value === '__proto__' ? null : mf.value : mf.value[0];
 						if (str[l] === ':') {
 							l += 1;
-							mf = str.substring(l).parseJsex(disallowedMethods);
+							mf = str.substring(l).parseJsex(forbiddenMethods);
 							if (mf) {
 								l += mf.length;
 								l += blanklength(str.substring(l));
-								if (mm !== null && (!disallowedMethods || typeof mf.value !== 'function' || !disallowedMethods.includes(mm))) {
+								if (mm !== null && (typeof mf.value !== 'function' || !Array.isArray(forbiddenMethods) || !forbiddenMethods.includes(mm))) {
 									m[mm] = mf.value;
 								}
 								ml = false;
@@ -597,7 +595,7 @@
 			} catch (e) { }
 		} else if (m = str.match(/^new (Int8|Uint8|Uint8Clamped|Int16|Uint16|Int32|Uint32|Float32|Float64|BigInt64|BigUint64)Array\(/)) {
 			l = m[0].length;
-			const f = str.substring(l).parseJsex(disallowedMethods);
+			const f = str.substring(l).parseJsex(forbiddenMethods);
 			if (f && Array.isArray(f.value) && str[l += f.length] === ')') {
 				try {
 					r = {
@@ -617,7 +615,7 @@
 					value: c()
 				};
 			} else {
-				const n = str.substring(l).parseJsex(disallowedMethods);
+				const n = str.substring(l).parseJsex(forbiddenMethods);
 				if (n && typeof n.value === 'string') {
 					l += n.length;
 					if (str[l] === ')') {
@@ -630,7 +628,7 @@
 						} catch (e) { }
 					} else if (str[l] === ',') {
 						l += 1;
-						const b = str.substring(l).parseJsex(disallowedMethods);
+						const b = str.substring(l).parseJsex(forbiddenMethods);
 						if (b && typeof b.value === 'string') {
 							l += b.length;
 							if (str[l] === ')') {

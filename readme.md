@@ -22,11 +22,12 @@ It's hard to make a full list. But jsex requires some bleeding edge ES features.
 
 
 ## How to serialize data?
-By calling `toJsex(data, options = {sorting: false, implicitConversion: false, jsonCompatible: false, debug: false})`.
-* `sorting`: Whether sorting the content of `Map`, `Set` and `Object`.
-* `implicitConversion`: Whether trying to resolve unrecognized type by calling its `valueOf` method.
-* `jsonCompatible`: Whether generating JSON compatible string.
-* `debug`: Whether throw error when meet unexpected data or just skip them silently.
+By calling `toJsex(data, options)`.
+* `options` defaults to `{sorting: false, implicitConversion: false, jsonCompatible: false, debug: false}`.
+  * `sorting`: Whether sorting the content of `Map`, `Set` and `Object`.
+  * `implicitConversion`: Whether trying to resolve unrecognized type by calling its `valueOf` method.
+  * `jsonCompatible`: Whether generating JSON compatible string.
+  * `debug`: Whether throw error when meet unexpected data or just skip them silently.
 ### serializing example:
 ```javascript
 require('jsex');
@@ -62,8 +63,8 @@ console.log('is compatible:', toJsex(obj, {jsonCompatible: true}) === jsonstr);
 
 
 ## How to deserialize?
-Basically you can just `eval` the string if you trust the source. However if you don't, use `String.prototype.parseJsex(disallowedMethods = ['toString', 'toJSON', 'valueOf', Symbol.asyncIterator, Symbol.hasInstance, Symbol.iterator, Symbol.matchAll, Symbol.replace, Symbol.search, Symbol.split, Symbol.toPrimitive])` instead. This method returns `undefined` if parsing failed, or an `Object` with a `length` key (to store the count of characters parsed in this string) and a `value` key (to store the real result).
-* `disallowedMethods`: You probably don't want these methods as they might be called implicitly. Or you may change this param to `null` or another `Array`.
+Basically you can just `eval` the string if you trust the source. However if you don't, use `String.prototype.parseJsex(forbiddenMethods)` instead. This method returns `undefined` if parsing failed, or an `Object` with a `length` key (to store the count of characters parsed in this string) and a `value` key (to store the real result).
+* `forbiddenMethods` defaults to `['toString', 'toJSON', 'valueOf', Symbol.asyncIterator, Symbol.hasInstance, Symbol.iterator, Symbol.matchAll, Symbol.replace, Symbol.search, Symbol.split, Symbol.toPrimitive]`. You probably don't want these methods cause they might be called implicitly. Or you may change this param to `null` or another `Array`.
 ### deserializing example:
 ```javascript
 //following the above code
