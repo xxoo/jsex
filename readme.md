@@ -125,7 +125,7 @@ Yes, comments are allowed. But not on everywhere. Such as `-/*123*/4` is invalid
 Yes, there are a few more differences.
 * `0` and `-0` are different in jsex.
 * `Object` has no prototype, which means it is safe to use any key name.
-* `toJsex` does not escape ASCII control characters (except `\r` and `\n`) by detault.
+* `toJsex` does not escape ASCII control characters (besides `\r` and `\n`) by detault.
 * `toJsex` does not skip unenumerable keys and symbol keys in `Object`.
 
 
