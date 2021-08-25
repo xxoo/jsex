@@ -1,5 +1,5 @@
 ## What is jsex?
-jsex is a strict subset of javascript for data serialization/deserialization, which can support most of the native javascript data types.
+jsex is a strict subset of javascript for data serialization/deserialization, which supports most of the native javascript data types.
 
 
 ## How many data types are supported?
@@ -18,7 +18,7 @@ As many as possible, including:
 
 
 ## How many browsers are supported?
-It's hard to make a full list. But jsex requires some bleeding edge ES features. In order to make sure it works, you probably need to install some polyfill for your production environment. I personally suggest [polyfill.io](https://polyfill.io/v3/polyfill.min.js?features=es2016%2Ces2017%2Ces2018%2Ces2019%2CString.fromCodePoint%2CglobalThis&flags=always,gated)
+It's hard to make a full list. But jsex requires some bleeding edge ES features. In order to make sure it works, you probably need to install some polyfill for your production environment. And I suggest [polyfill.io](https://polyfill.io/v3/polyfill.min.js?features=es2016%2Ces2017%2Ces2018%2Ces2019%2CString.fromCodePoint%2CglobalThis&flags=always,gated)
 
 
 ## How to serialize data?
@@ -98,7 +98,7 @@ class customType {
   }
 }
 let source = toJsex(customType, {implicitConversion: true});
-let deserializedClass = Function('return ' + source.parseJsex().value);
+let deserializedClass = Function('return ' + source.parseJsex().value)();
 console.log(deserializedClass.toString() === customType.toString());
 //true
 ```
