@@ -1,8 +1,9 @@
-//jsex version: 1.0.28
+//jsex version: 1.0.29
 //https://github.com/xxoo/jsex
 (() => {
 	'use strict';
-	const blanklength = str => str.match(/^(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/)[0].length,
+	const implicitMethods = new Set(['toString', 'toJSON', 'valueOf']),
+		blanklength = str => str.match(/^(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/)[0].length,
 		//assume a function has no syntax error, then we can use some imrigorous detection to seek out the end of its name or params
 		//t = 0 for name, t = 1 for params
 		sectionlength = (s, t, forof) => {
@@ -11,30 +12,30 @@
 				['(', ')', '!~+-*=<>|&{}?:,;[', /^([\d\w$#.]+)|[!~+\-*=<>|&{}?:,;[\]]+/]
 			][t];
 			let e,
-				i = blanklength(s.substring(1)) + 1;
+				i = blanklength(s.slice(1)) + 1;
 			while (s[i] !== p[1]) {
 				if (s[i] === '/') {
 					if (e) {
 						++i;
 						e = false;
 					} else {
-						i += s.substring(i).match(/^\/(?!\*)(?:[^[/\\\r\n\u2028\u2029]|\\.|\[(?:[^\r\n\u2028\u2029\]\\]|\\.)*\])+\//)[0].length;
+						i += s.slice(i).match(/^\/(?!\*)(?:[^[/\\\r\n\u2028\u2029]|\\.|\[(?:[^\r\n\u2028\u2029\]\\]|\\.)*\])+\//)[0].length;
 						e = true;
 					}
 				} else if (s[i] === '"') {
-					i += s.substring(i).match(/^"(?:[^\r\n"\\]|\\(?:\r\n?|[^\r]))*"/)[0].length;
+					i += s.slice(i).match(/^"(?:[^\r\n"\\]|\\(?:\r\n?|[^\r]))*"/)[0].length;
 					e = true;
 				} else if (s[i] === '\'') {
-					i += s.substring(i).match(/^'(?:[^\r\n'\\]|\\(?:\r\n?|[^\r]))*'/)[0].length;
+					i += s.slice(i).match(/^'(?:[^\r\n'\\]|\\(?:\r\n?|[^\r]))*'/)[0].length;
 					e = true;
 				} else if (s[i] === '`') {
-					i += s.substring(i).match(/^`(?:[^`\\]|\\[\s\S])*`/)[0].length;
+					i += s.slice(i).match(/^`(?:[^`\\]|\\[\s\S])*`/)[0].length;
 					e = true;
 				} else if (s[i] === p[0]) {
-					i += sectionlength(s.substring(i), t, t && forof === 1 ? 2 : 0);
+					i += sectionlength(s.slice(i), t, t && forof === 1 ? 2 : 0);
 					e = true;
 				} else {
-					const m = s.substring(i).match(p[3]);
+					const m = s.slice(i).match(p[3]);
 					i += m[0].length;
 					//we need to detect for...of statement
 					if (forof === 0) {
@@ -60,7 +61,7 @@
 					}
 					e = forof === 4 ? false : !['extends', 'yield', 'await', 'new', 'delete', 'void', 'typeof', 'case', 'throw', 'return', 'in', 'else', 'do', '...'].includes(m[0]) && !p[2].includes(s[i - 1]);
 				}
-				i += blanklength(s.substring(i));
+				i += blanklength(s.slice(i));
 			}
 			return i + 1;
 		},
@@ -105,7 +106,7 @@
 		}) + '"',
 		getRealType = data => {
 			const t = Object.prototype.toString.call(data);
-			return t.substring(8, t.length - 1);
+			return t.slice(8, t.length - 1);
 		},
 		realToJsex = (data, options, log) => {
 			let s;
@@ -130,7 +131,7 @@
 							s = data.description;
 						} else {
 							s = data.toString();
-							s = s.length > 8 ? s.substring(7, s.length - 1) : '';
+							s = s.length > 8 ? s.slice(7, s.length - 1) : '';
 						}
 						if (!(t = s.match(/^Symbol\.([\w$][\d\w$]*)$/)) || Symbol[t[1]] !== data) {
 							s = 'Symbol(' + (s ? escapeStr(s) : '') + ')';
@@ -160,20 +161,20 @@
 						}
 						v = v.replace(/^(?:function(?![\d\w$])(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*)?(?:\*(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*)?/, '');
 						if (v[0] === '[') {
-							v = v.substring(sectionlength(v, 0, 0));
-							v = v.substring(blanklength(v));
+							v = v.slice(sectionlength(v, 0, 0));
+							v = v.slice(blanklength(v));
 						} else {
 							v = v.replace(/(?:[\w$][\d\w$]*(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*(?=\())?/, '');
 						}
 						if (v[0] === '(') {
 							const l = sectionlength(v, 1, 0);
-							s = v.substring(0, l).replace(/^\(\s*|\s*\)$/g, '');
-							v = v.substring(l);
+							s = v.slice(0, l).replace(/^\(\s*|\s*\)$/g, '');
+							v = v.slice(l);
 						} else {
 							s = v.match(/^[\w$][\d\w$]*/)[0];
-							v = v.substring(s.length);
+							v = v.slice(s.length);
 						}
-						v = v.substring(blanklength(v)).replace(/^=>(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/, '');
+						v = v.slice(blanklength(v)).replace(/^=>(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/, '');
 						v = v[0] === '{' ? v.replace(/^\{\s*|\s*\}$/g, '') : 'return ' + v;
 						s = (t in c ? c[t] : 'Function') + (v ? `(${s ? escapeStr(s) + ',' : ''}${escapeStr(v)})` : '()');
 					}
@@ -299,43 +300,51 @@
 	//debug: whether throw error when meet unexpected data
 	globalThis.toJsex = (data, options = { __proto__: null }) => realToJsex(data, options, new Set);
 
+	//add well-known symbols to implicit methods
+	for (const n of Object.getOwnPropertyNames(Symbol)) {
+		const m = Symbol[n];
+		if (typeof m === 'symbol' && typeof m.description === 'string' && m.description.startsWith('Symbol.')) {
+			implicitMethods.add(m);
+		}
+	}
+
 	//deserialize jsex, support JSON string
-	String.prototype.parseJsex = function (forbiddenMethods = ['toString', 'toJSON', 'valueOf', Symbol.asyncIterator, Symbol.hasInstance, Symbol.iterator, Symbol.matchAll, Symbol.replace, Symbol.search, Symbol.split, Symbol.toPrimitive]) {
+	String.prototype.parseJsex = function (forbiddenMethods = implicitMethods) {
 		const p = blanklength(this),
-			str = this.substring(p);
+			str = this.slice(p);
 		let m, l, r;
-		if (str.substring(0, l = 4) === 'null') {
+		if (str.slice(0, l = 4) === 'null') {
 			r = {
 				__proto__: null,
 				length: l + p,
 				value: null
 			};
-		} else if (str.substring(0, l = 9) === 'undefined') {
+		} else if (str.slice(0, l = 9) === 'undefined') {
 			r = {
 				__proto__: null,
 				length: l + p,
 				value: undefined
 			};
-		} else if (str.substring(0, l = 3) === 'NaN') {
+		} else if (str.slice(0, l = 3) === 'NaN') {
 			r = {
 				__proto__: null,
 				length: l + p,
 				value: NaN
 			};
-		} else if (str.substring(0, l = 4) === 'true') {
+		} else if (str.slice(0, l = 4) === 'true') {
 			r = {
 				__proto__: null,
 				length: l + p,
 				value: true
 			};
-		} else if (str.substring(0, l = 5) === 'false') {
+		} else if (str.slice(0, l = 5) === 'false') {
 			r = {
 				__proto__: null,
 				length: l + p,
 				value: false
 			};
-		} else if (str.substring(0, l = 9) === 'new Date(') {
-			m = str.substring(l).parseJsex(forbiddenMethods);
+		} else if (str.slice(0, l = 9) === 'new Date(') {
+			m = str.slice(l).parseJsex(forbiddenMethods);
 			if (m && typeof m.value === 'number' && str[l += m.length] === ')') {
 				r = {
 					__proto__: null,
@@ -343,13 +352,13 @@
 					value: new Date(m.value)
 				};
 			}
-		} else if (str.substring(0, l = 15) === 'AggregateError(') {
-			const n = str.substring(l).parseJsex(forbiddenMethods);
+		} else if (str.slice(0, l = 15) === 'AggregateError(') {
+			const n = str.slice(l).parseJsex(forbiddenMethods);
 			if (n && Array.isArray(n.value)) {
 				l += n.length;
 				if (str[l] === ',') {
 					l += 1;
-					m = str.substring(l).parseJsex(forbiddenMethods);
+					m = str.slice(l).parseJsex(forbiddenMethods);
 					if (m && typeof m.value === 'string') {
 						l += m.length;
 						if (str[l] === ')') {
@@ -368,10 +377,10 @@
 					};
 				}
 			}
-		} else if (str.substring(0, l = 7) === 'new Set') {
+		} else if (str.slice(0, l = 7) === 'new Set') {
 			if (str[l] === '(') {
 				l += 1;
-				m = str.substring(l).parseJsex(forbiddenMethods);
+				m = str.slice(l).parseJsex(forbiddenMethods);
 				if (m && Array.isArray(m.value) && str[l += m.length] === ')') {
 					r = {
 						__proto__: null,
@@ -386,10 +395,10 @@
 					value: new Set
 				};
 			}
-		} else if (str.substring(0, l = 7) === 'new Map') {
+		} else if (str.slice(0, l = 7) === 'new Map') {
 			if (str[l] === '(') {
 				l += 1;
-				m = str.substring(l).parseJsex(forbiddenMethods);
+				m = str.slice(l).parseJsex(forbiddenMethods);
 				if (m && Array.isArray(m.value) && str[l += m.length] === ')') {
 					for (const i of m.value) {
 						if (!Array.isArray(i) || i.length !== 2) {
@@ -412,7 +421,7 @@
 					value: new Map
 				};
 			}
-		} else if (str.substring(0, l = 6) === 'Symbol') {
+		} else if (str.slice(0, l = 6) === 'Symbol') {
 			if (str[l] === '(') {
 				l += 1;
 				if (str[l] === ')') {
@@ -422,7 +431,7 @@
 						value: Symbol()
 					};
 				} else {
-					m = str.substring(l).parseJsex(forbiddenMethods);
+					m = str.slice(l).parseJsex(forbiddenMethods);
 					if (m && typeof m.value === 'string') {
 						l += m.length;
 						if (str[l] === ')') {
@@ -434,9 +443,9 @@
 						}
 					}
 				}
-			} else if (str.substring(l, l + 5) === '.for(') {
+			} else if (str.slice(l, l + 5) === '.for(') {
 				l += 5;
-				m = str.substring(l).parseJsex(forbiddenMethods);
+				m = str.slice(l).parseJsex(forbiddenMethods);
 				if (m && typeof m.value === 'string') {
 					l += m.length;
 					if (str[l] === ')') {
@@ -447,7 +456,7 @@
 						};
 					}
 				}
-			} else if ((m = str.substring(l).match(/^\.([\w$][\d\w$]*)/)) && typeof Symbol[m[1]] === 'symbol') {
+			} else if ((m = str.slice(l).match(/^\.([\w$][\d\w$]*)/)) && typeof Symbol[m[1]] === 'symbol') {
 				r = {
 					__proto__: null,
 					length: l + p + m[0].length,
@@ -471,10 +480,10 @@
 						continue;
 					}
 				} else if (ml) {
-					mf = str.substring(l).parseJsex(forbiddenMethods);
+					mf = str.slice(l).parseJsex(forbiddenMethods);
 					if (mf) {
 						l += mf.length;
-						l += blanklength(str.substring(l));
+						l += blanklength(str.slice(l));
 						m.push(mf.value);
 						ml = false;
 						me = mq = true;
@@ -507,18 +516,18 @@
 						continue;
 					}
 				} else if (ml) {
-					mf = str.substring(l).parseJsex(forbiddenMethods);
+					mf = str.slice(l).parseJsex(forbiddenMethods);
 					if (mf && (mm = typeof mf.value === 'string') || (Array.isArray(mf.value) && mf.value.length === 1 && ['symbol', 'string'].includes(typeof mf.value[0]))) {
 						l += mf.length;
-						l += blanklength(str.substring(l));
+						l += blanklength(str.slice(l));
 						mm = mm ? mf.value === '__proto__' ? null : mf.value : mf.value[0];
 						if (str[l] === ':') {
 							l += 1;
-							mf = str.substring(l).parseJsex(forbiddenMethods);
+							mf = str.slice(l).parseJsex(forbiddenMethods);
 							if (mf) {
 								l += mf.length;
-								l += blanklength(str.substring(l));
-								if (mm !== null && (typeof mf.value !== 'function' || !Array.isArray(forbiddenMethods) || !forbiddenMethods.includes(mm))) {
+								l += blanklength(str.slice(l));
+								if (mm !== null && (typeof mf.value !== 'function' || getRealType(forbiddenMethods) !== 'Set' || !forbiddenMethods.has(mm))) {
 									m[mm] = mf.value;
 								}
 								ml = false;
@@ -593,7 +602,7 @@
 			} catch (e) { }
 		} else if (m = str.match(/^new (Int8|Uint8|Uint8Clamped|Int16|Uint16|Int32|Uint32|Float32|Float64|BigInt64|BigUint64)Array\(/)) {
 			l = m[0].length;
-			const f = str.substring(l).parseJsex(forbiddenMethods);
+			const f = str.slice(l).parseJsex(forbiddenMethods);
 			if (f && Array.isArray(f.value) && str[l += f.length] === ')') {
 				try {
 					r = {
@@ -613,7 +622,7 @@
 					value: c()
 				};
 			} else {
-				const n = str.substring(l).parseJsex(forbiddenMethods);
+				const n = str.slice(l).parseJsex(forbiddenMethods);
 				if (n && typeof n.value === 'string') {
 					l += n.length;
 					if (str[l] === ')') {
@@ -626,7 +635,7 @@
 						} catch (e) { }
 					} else if (str[l] === ',') {
 						l += 1;
-						const b = str.substring(l).parseJsex(forbiddenMethods);
+						const b = str.slice(l).parseJsex(forbiddenMethods);
 						if (b && typeof b.value === 'string') {
 							l += b.length;
 							if (str[l] === ')') {
