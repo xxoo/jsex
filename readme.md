@@ -18,7 +18,7 @@ As many as possible, including:
 
 
 ## How many browsers are supported?
-It's hard to make a full list. But jsex requires some bleeding edge ES features. In order to make sure it works, you probably need to install some polyfill for your production environment. And I suggest [polyfill.io](https://polyfill.io/v3/polyfill.min.js?features=es2016%2Ces2017%2Ces2018%2Ces2019%2CString.fromCodePoint%2CglobalThis&flags=always,gated)
+It's hard to make a full list. But jsex requires some bleeding edge ES features. In order to make sure it works, you probably need to install some polyfill for your production environment.
 
 
 ## How to serialize data?

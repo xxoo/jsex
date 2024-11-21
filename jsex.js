@@ -1,4 +1,4 @@
-//jsex version: 1.0.29
+//jsex version: 1.0.30
 //https://github.com/xxoo/jsex
 (() => {
 	'use strict';

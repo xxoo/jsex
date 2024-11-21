@@ -1,6 +1,6 @@
 {
 	"name": "jsex",
-	"version": "1.0.29",
+	"version": "1.0.30",
 	"description": "data serialization/deserialization for javascript",
 	"main": "jsex.js",
 	"repository": {
