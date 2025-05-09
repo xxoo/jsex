@@ -1,4 +1,4 @@
-// jsex version: 1.0.31
+// jsex version: 1.0.32
 // https://github.com/xxoo/jsex
 (() => {
 	'use strict';
@@ -471,7 +471,7 @@
 				mn = false;
 			l = 1;
 			m = [];
-			while (!(mn || (me && str[l] === ']'))) {
+			while (!(mn || me && str[l] === ']')) {
 				if (mq) {
 					if (str[l] === ',') {
 						l += 1;
@@ -507,7 +507,7 @@
 				mn = false;
 			l = 1;
 			m = { __proto__: null };
-			while (!(mn || (me && str[l] === '}'))) {
+			while (!(mn || me && str[l] === '}')) {
 				if (mq) {
 					if (str[l] === ',') {
 						l += 1;
@@ -517,7 +517,7 @@
 					}
 				} else if (ml) {
 					mf = str.slice(l).parseJsex(forbiddenMethods);
-					if (mf && (mm = typeof mf.value === 'string') || (Array.isArray(mf.value) && mf.value.length === 1 && ['symbol', 'string'].includes(typeof mf.value[0]))) {
+					if (mf && (mm = typeof mf.value === 'string') || Array.isArray(mf.value) && mf.value.length === 1 && ['symbol', 'string'].includes(typeof mf.value[0])) {
 						l += mf.length;
 						l += blanklength(str.slice(l));
 						mm = mm ? mf.value === '__proto__' ? null : mf.value : mf.value[0];
@@ -600,7 +600,7 @@
 					value: RegExp(m[1], m[2])
 				};
 			} catch (e) { }
-		} else if (m = str.match(/^new (Int8|Uint8|Uint8Clamped|Int16|Uint16|Int32|Uint32|Float32|Float64|BigInt64|BigUint64)Array\(/)) {
+		} else if (m = str.match(/^new (Int8|Uint8|Uint8Clamped|Int16|Uint16|Int32|Uint32|Float16|Float32|Float64|BigInt64|BigUint64)Array\(/)) {
 			l = m[0].length;
 			const f = str.slice(l).parseJsex(forbiddenMethods);
 			if (f && Array.isArray(f.value) && str[l += f.length] === ')') {
