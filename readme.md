@@ -1,5 +1,5 @@
 ## What is jsex?
-jsex is a strict subset of javascript for data serialization/deserialization, which supports most of the native javascript data types.
+jsex is a strict subset of javascript designed for data serialization/deserialization. It supports most native javascript data types. You may consider it as **JSON Extended** or **JavaScript Expression**.
 
 
 ## How many data types are supported?
@@ -18,16 +18,16 @@ As many as possible, including:
 
 
 ## How many browsers are supported?
-It's hard to make a full list. But jsex requires some bleeding edge ES features. In order to make sure it works, you probably need to install some polyfill for your production environment.
+jsex relies on certain ES2020 features, making it difficult to provide a comprehensive list of compatible browsers. To ensure proper functionality in production environments, we recommend installing appropriate polyfills or using transpilers like Babel.
 
 
 ## How to serialize data?
 By calling `toJsex(data, options)`.
 * `options` defaults to `{sorting: false, implicitConversion: false, jsonCompatible: false, debug: false}`.
-  * `sorting`: Whether sorting the content of `Map`, `Set` and `Object`.
-  * `implicitConversion`: Whether trying to resolve unrecognized type by calling its `valueOf` method.
-  * `jsonCompatible`: Whether generating JSON compatible string.
-  * `debug`: Whether throw error when meet unexpected data or just skip them silently.
+  - `sorting`: Whether sorting the contents of `Map`, `Set` and `Object`.
+  - `implicitConversion`: Whether attempts to resolve unrecognized type by calling its `valueOf` method.
+  - `jsonCompatible`: Whether generating JSON compatible string.
+  - `debug`: Whether throw error for unexpected data instead of skip them silently. eg: native functions, cyclic references, etc.
 ### serializing example:
 ```javascript
 require('jsex');
@@ -63,8 +63,8 @@ console.log('is compatible:', toJsex(obj, {jsonCompatible: true}) === jsonstr);
 
 
 ## How to deserialize?
-Basically you can just `eval` the string if you trust the source. However if you don't, use `String.prototype.parseJsex(forbiddenMethods)` instead. This method returns `undefined` if parsing failed, or an `Object` with a `length` key (to store the count of characters parsed in this string) and a `value` key (to store the real result).
-* `forbiddenMethods` defaults to a `Set` that includes all implicit methods of the current javascript engine. You probably don't want these methods cause they might be called automatically. Or you may change this param to `null` or another `Set`.
+Basically you can just `eval` the string if you trust the source. However if you don't, use `String.prototype.parseJsex(forbiddenMethods)` instead. This method returns `undefined` if parsing failed, or an `Object` with a `length` key (indicating the number of parsed characters) and a `value` key (containing the actual result).
+* `forbiddenMethods` defaults to a `Set` containing all implicit methods of the current javascript engine. These methods are typically excluded to prevent automatic execution. You can also set this parameter to `null` or provide a custom `Set`.
 ### deserializing example:
 ```javascript
 //following the above code
@@ -82,11 +82,11 @@ console.log('jsex is a subset of javascript?', JSON.stringify(evalJsex) === JSON
 
 
 ## Does `parseJsex` support JSON string?
-Yes, but any `__proto__` key of `Object` in JSON string will be ignored. As the above example shown.
+Yes, but any `__proto__` key of `Object` in JSON objects will be ignored, as demonstrated in the example above.
 
 
 ## How to serialize a `class`?
-For security reason, `class` is not supported by default. But you can still serialize it as `string` by calling `toJsex` with `implicitConversion` option set to `true`.
+For security reason, `class` is not supported by default. However, you can serialize them as strings by calling `toJsex` with `implicitConversion` option set to `true`.
 ### class example:
 ```javascript
 class customType {
@@ -105,7 +105,7 @@ console.log(deserializedClass.toString() === customType.toString());
 
 
 ## How to serialize a custom type?
-You can't define custom types in jsex. But you can resolve it to a supported type by implanting a `valueOf` method. And then call `toJsex` with `implicitConversion` option set to `true`.
+jsex doesn't support custom type definitions. However, you can resolve custom types to supported types by implementing a `valueOf` method, then calling `toJsex` with the `implicitConversion` option set to `true`.
 ### custom type example:
 ```javascript
 //following the above code
@@ -118,16 +118,16 @@ let instance2 = Reflect.construct(deserializedClass, jsex.parseJsex().value);
 
 
 ## Can I use comments in jsex?
-Yes, comments are allowed. But not on everywhere. Such as `-/*123*/4` is invalid in jsex.
+Yes, comments are allowed, but not in all positions. For example, `-/*123*/4` is invalid in jsex.
 
 
 ## Is there any other difference between JSON and jsex?
 Yes, there are a few more differences.
-* `0` and `-0` are different in jsex.
-* `Object` has no prototype, which means it is safe to use any key name.
-* `toJsex` does not escape ASCII control characters (besides `\r` and `\n`) by detault.
-* `toJsex` does not skip unenumerable keys and symbol keys in `Object`.
+* jsex differentiates between `0` and `-0`.
+* `Object` in jsex have no prototype, making any key name safe to use.
+* By default, `toJsex` doesn't escape ASCII control characters (except for `\r` and `\n`).
+* `toJsex` includes non-enumerable properties and symbol keys in `Object`.
 
 
 ## When should I use jsex?
-When you are using javascript, and JSON can not fit your needs.
+When you are using javascript, but JSON does not fit your needs.

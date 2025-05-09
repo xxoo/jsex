@@ -1,11 +1,11 @@
-//jsex version: 1.0.30
-//https://github.com/xxoo/jsex
+// jsex version: 1.0.31
+// https://github.com/xxoo/jsex
 (() => {
 	'use strict';
 	const implicitMethods = new Set(['toString', 'toJSON', 'valueOf']),
 		blanklength = str => str.match(/^(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/)[0].length,
-		//assume a function has no syntax error, then we can use some imrigorous detection to seek out the end of its name or params
-		//t = 0 for name, t = 1 for params
+		// assume a function has no syntax error, then we can use some imrigorous detection to seek out the end of its name or params
+		// t = 0 for name, t = 1 for params
 		sectionlength = (s, t, forof) => {
 			const p = [
 				['[', ']', '!~+-*=<>|&{}?:,;(', /^([\d\w$#.]+)|[!~+\-*=<>|&{}?:,;()]+/],
@@ -37,7 +37,7 @@
 				} else {
 					const m = s.slice(i).match(p[3]);
 					i += m[0].length;
-					//we need to detect for...of statement
+					// we need to detect for...of statement
 					if (forof === 0) {
 						if (m[0] === 'for') {
 							forof = 1;
@@ -148,7 +148,7 @@
 							throw TypeError('class is not supported by default');
 						}
 					} else {
-						//these constructors are not global by default
+						// these constructors are not global by default
 						const c = {
 							AsyncFunction: '(async()=>{}).constructor',
 							GeneratorFunction: 'function*(){}.constructor',
@@ -231,7 +231,7 @@
 							} else if (options.debug) {
 								throw TypeError('bad AggregateError');
 							}
-						} else if (['Array', 'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array'].includes(t)) {
+						} else if (['Array', 'Int8Array', 'Uint8Array', 'Uint8ClampedArray', 'Int16Array', 'Uint16Array', 'Int32Array', 'Uint32Array', 'Float16Array', 'Float32Array', 'Float64Array', 'BigInt64Array', 'BigUint64Array'].includes(t)) {
 							s = '[';
 							for (let i = 0; i < data.length; ++i) {
 								if (i > 0) {
@@ -293,14 +293,14 @@
 			return s;
 		};
 
-	//serialize to jsex
-	//sorting: whether sorting keys in Map, Set and Object
-	//implicitConversion: Whether trying to resolve unrecognized type by calling its valueOf method
-	//jsonCompatible: whether generate JSON compatible string. this argument makes sance only if data doesn't contain extended types
-	//debug: whether throw error when meet unexpected data
+	// serialize to jsex
+	// sorting: whether sorting keys in Map, Set and Object
+	// implicitConversion: Whether trying to resolve unrecognized type by calling its valueOf method
+	// jsonCompatible: whether generate JSON compatible string. this argument makes sance only if data doesn't contain extended types
+	// debug: whether throw error when meet unexpected data
 	globalThis.toJsex = (data, options = { __proto__: null }) => realToJsex(data, options, new Set);
 
-	//add well-known symbols to implicit methods
+	// add well-known symbols to implicit methods
 	for (const n of Object.getOwnPropertyNames(Symbol)) {
 		const m = Symbol[n];
 		if (typeof m === 'symbol' && typeof m.description === 'string' && m.description.startsWith('Symbol.')) {
@@ -308,7 +308,7 @@
 		}
 	}
 
-	//deserialize jsex, support JSON string
+	// deserialize jsex, support JSON string
 	String.prototype.parseJsex = function (forbiddenMethods = implicitMethods) {
 		const p = blanklength(this),
 			str = this.slice(p);
