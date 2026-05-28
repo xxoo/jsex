@@ -4,66 +4,263 @@
 	'use strict';
 	const implicitMethods = new Set(['toString', 'toJSON', 'valueOf']),
 		blanklength = str => str.match(/^(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/)[0].length,
-		// assume a function has no syntax error, then we can use some imrigorous detection to seek out the end of its name or params
-		// t = 0 for name, t = 1 for params
-		sectionlength = (s, t, forof) => {
-			const p = [
-				['[', ']', '!~+-*=<>|&{}?:,;(', /^([\d\w$#.]+)|[!~+\-*=<>|&{}?:,;()]+/],
-				['(', ')', '!~+-*=<>|&{}?:,;[', /^([\d\w$#.]+)|[!~+\-*=<>|&{}?:,;[\]]+/]
-			][t];
-			let e,
-				i = blanklength(s.slice(1)) + 1;
-			while (s[i] !== p[1]) {
-				if (s[i] === '/') {
-					if (e) {
+		// t = false for computed name, t = true for params. Input is assumed to be valid Function#toString() output.
+		sectionlength = (s, t) => {
+			let scan;
+			const isLine = c => c === '\n' || c === '\r' || c === '\u2028' || c === '\u2029',
+				isIdPart = c => /[\dA-Za-z_$]/.test(c),
+				isPunct = c => c === undefined || /[\s()[\]{}"'`/\\.,;?:~!%^&*+\-=<>|]/.test(c),
+				lineComment = i => {
+					while (i < s.length && !isLine(s[i])) ++i;
+					return i;
+				},
+				blockComment = i => s.indexOf('*/', i + 2) + 2,
+				string = i => {
+					const q = s[i++];
+					while (s[i] !== q) {
+						i += s[i] === '\\' ? isLine(s[i + 1]) && s[i + 1] === '\r' && s[i + 2] === '\n' ? 3 : 2 : 1;
+					}
+					return i + 1;
+				},
+				regex = i => {
+					let c,
+						inClass = false,
+						start = ++i;
+					while (i < s.length) {
+						c = s[i];
+						if (c === '\\') {
+							i += 2;
+						} else if (inClass) {
+							inClass = c !== ']';
+							++i;
+						} else if (c === '[') {
+							inClass = true;
+							++i;
+						} else if (c === '/' || isLine(c)) {
+							if (c === '/') {
+								const body = s.slice(start, i),
+									flagStart = ++i;
+								while (isIdPart(s[i])) ++i;
+								try {
+									RegExpConstructor(body, s.slice(flagStart, i));
+									return i;
+								} catch (e) { }
+							}
+							return;
+						} else {
+							++i;
+						}
+					}
+				},
+				number = i => i + s.slice(i).match(/^(?:0[xX][\dA-Fa-f](?:_?[\dA-Fa-f])*n?|0[bB][01](?:_?[01])*n?|0[oO][0-7](?:_?[0-7])*n?|(?:\d(?:_?\d)*)(?:\.(?:\d(?:_?\d)*)?)?(?:[eE][+-]?\d(?:_?\d)*)?n?|\.(?:\d(?:_?\d)*)(?:[eE][+-]?\d(?:_?\d)*)?)/)[0].length,
+				unicodeEscape = i => {
+					if (s[i + 2] !== '{') return i + 6;
+					i += 3;
+					while (s[i] !== '}') ++i;
+					return i + 1;
+				},
+				word = i => {
+					const start = i;
+					let escaped = false;
+					if (s[i] === '\\') {
+						escaped = true;
+						i = unicodeEscape(i);
+					} else if (/[A-Za-z_$]/.test(s[i])) {
 						++i;
-						e = false;
 					} else {
-						i += s.slice(i).match(/^\/(?!\*)(?:[^[/\\\r\n\u2028\u2029]|\\.|\[(?:[^\r\n\u2028\u2029\]\\]|\\.)*\])+\//)[0].length;
-						e = true;
+						while (!isPunct(s[i])) ++i;
+						return [s.slice(start, i), i, true];
 					}
-				} else if (s[i] === '"') {
-					i += s.slice(i).match(/^"(?:[^\r\n"\\]|\\(?:\r\n?|[^\r]))*"/)[0].length;
-					e = true;
-				} else if (s[i] === '\'') {
-					i += s.slice(i).match(/^'(?:[^\r\n'\\]|\\(?:\r\n?|[^\r]))*'/)[0].length;
-					e = true;
-				} else if (s[i] === '`') {
-					i += s.slice(i).match(/^`(?:[^`\\]|\\[\s\S])*`/)[0].length;
-					e = true;
-				} else if (s[i] === p[0]) {
-					i += sectionlength(s.slice(i), t, t && forof === 1 ? 2 : 0);
-					e = true;
-				} else {
-					const m = s.slice(i).match(p[3]);
-					i += m[0].length;
-					// we need to detect for...of statement
-					if (forof === 0) {
-						if (m[0] === 'for') {
-							forof = 1;
+					while (isIdPart(s[i]) || s[i] === '\\') {
+						if (s[i] === '\\') {
+							escaped = true;
+							i = unicodeEscape(i);
+						} else {
+							++i;
 						}
-					} else if (forof === 1) {
-						if (m[0] === '(') {
-							forof = 2;
-						} else if (m[0] !== 'await') {
-							forof = 0;
+					}
+					return [s.slice(start, i), i, escaped];
+				},
+				template = i => {
+					++i;
+					while (s[i] !== '`') {
+						if (s[i] === '\\') {
+							i += 2;
+						} else if (s[i] === '$' && s[i + 1] === '{') {
+							i = scan(i + 2, '}');
+						} else {
+							++i;
 						}
-					} else if (forof === 2) {
-						if (!m[1]) {
-							forof = 0;
-						} else if (!['const', 'let', 'var'].includes(m[0])) {
-							forof = 3;
+					}
+					return i + 1;
+				};
+			scan = (i, end) => {
+				const stack = [{
+					close: end,
+					kind: 'root'
+				}];
+				let arrowBody = false,
+					asyncStart,
+					classState,
+					control = false,
+					controlBody = false,
+					expr = true,
+					fn,
+					fnBody,
+					methodBody = false,
+					statementStart = false;
+				const push = c => {
+					stack.push(c);
+					expr = true;
+					statementStart = ['block', 'function', 'arrow'].includes(c.kind);
+				},
+					pop = () => {
+						const c = stack.pop();
+						if (c.kind === 'root') return true;
+						if (c.kind === 'fnParams') {
+							fnBody = c.after;
+							expr = true;
+						} else if (c.kind === 'control') {
+							controlBody = true;
+							expr = statementStart = true;
+						} else {
+							if (c.kind === 'paren' && ['object', 'class'].includes(stack[stack.length - 1].kind)) methodBody = true;
+							expr = c.after;
+							statementStart = c.kind === 'block';
 						}
-					} else if (forof === 3) {
-						forof = m[0] === 'of' ? 4 : 0;
+					},
+					clearBody = c => {
+						if (c !== '{') arrowBody = controlBody = methodBody = false;
+					};
+				while (i < s.length) {
+					const c = s[i],
+						top = stack[stack.length - 1];
+					if (/\s/.test(c)) {
+						++i;
+					} else if (s.slice(i, i + 2) === '//') {
+						i = lineComment(i + 2);
+					} else if (s.slice(i, i + 2) === '/*') {
+						i = blockComment(i);
+					} else if (s.slice(i, i + 4) === '<!--') {
+						i = lineComment(i + 4);
+					} else if (c === top.close) {
+						++i;
+						if (pop()) return i;
+					} else if (c === '"' || c === '\'') {
+						clearBody(c);
+						i = string(i);
+						expr = statementStart = false;
+						asyncStart = undefined;
+					} else if (c === '`') {
+						clearBody(c);
+						i = template(i);
+						expr = statementStart = false;
+						asyncStart = undefined;
+					} else if (c === '/') {
+						clearBody(c);
+						asyncStart = undefined;
+						if (expr) {
+							const n = regex(i);
+							if (n) {
+								i = n;
+								expr = statementStart = false;
+							} else {
+								++i;
+							}
+						} else {
+							++i;
+							expr = true;
+						}
+					} else if (c === '(') {
+						clearBody(c);
+						push(fn ? {
+							after: fn.after,
+							close: ')',
+							kind: 'fnParams'
+						} : control ? {
+							close: ')',
+							kind: 'control'
+						} : {
+							after: false,
+							close: ')',
+							kind: 'paren'
+						});
+						fn = control = false;
+						asyncStart = undefined;
+						++i;
+					} else if (c === '[') {
+						clearBody(c);
+						asyncStart = undefined;
+						push({
+							after: false,
+							close: ']',
+							kind: 'bracket'
+						});
+						++i;
+					} else if (c === '{') {
+						asyncStart = undefined;
+						const kind = fnBody !== undefined || methodBody ? 'function' : arrowBody ? 'arrow' : classState && classState.depth === stack.length ? 'class' : controlBody || statementStart || !expr ? 'block' : 'object';
+						push({
+							after: kind === 'block' ? true : kind === 'function' ? fnBody : kind === 'class' ? classState.after : false,
+							close: '}',
+							kind
+						});
+						if (kind === 'class') classState = false;
+						fnBody = undefined;
+						arrowBody = controlBody = methodBody = false;
+						++i;
+					} else if (/\d/.test(c) || c === '.' && /\d/.test(s[i + 1])) {
+						clearBody(c);
+						i = number(i);
+						expr = statementStart = false;
+						asyncStart = undefined;
+					} else if (/[A-Za-z_$\\]/.test(c) || !isPunct(c)) {
+						const w = word(i);
+						let k = w[0];
+						clearBody(c);
+						i = w[1];
+						if (!w[2] && k === 'async') {
+							asyncStart = statementStart;
+							expr = statementStart = false;
+						} else {
+							if (!w[2] && k === 'function') {
+								fn = {
+									after: asyncStart !== undefined ? asyncStart : statementStart
+								};
+								asyncStart = undefined;
+							} else if (!w[2] && k === 'class') {
+								classState = {
+									after: statementStart,
+									depth: stack.length
+								};
+								asyncStart = undefined;
+								expr = true;
+							} else if (!w[2] && ['if', 'while', 'for', 'with', 'switch', 'catch'].includes(k)) {
+								asyncStart = undefined;
+								control = expr = true;
+							} else if (!w[2] && ['return', 'throw', 'case', 'delete', 'void', 'typeof', 'new', 'in', 'instanceof', 'extends', 'of', 'yield', 'await', 'else', 'do'].includes(k)) {
+								asyncStart = undefined;
+								expr = true;
+							} else {
+								asyncStart = undefined;
+								expr = false;
+							}
+							statementStart = false;
+						}
+					} else if (s.slice(i, i + 2) === '=>') {
+						i += 2;
+						arrowBody = expr = true;
+						asyncStart = undefined;
 					} else {
-						forof = 0;
+						clearBody(c);
+						i += s.slice(i, i + 3) === '...' ? 3 : s.slice(i, i + 2) === '++' || s.slice(i, i + 2) === '--' ? 2 : 1;
+						expr = c === '.' ? false : !')]}'.includes(c);
+						statementStart = c === ';';
+						asyncStart = undefined;
 					}
-					e = forof === 4 ? false : !['extends', 'yield', 'await', 'new', 'delete', 'void', 'typeof', 'case', 'throw', 'return', 'in', 'else', 'do', '...'].includes(m[0]) && !p[2].includes(s[i - 1]);
 				}
-				i += blanklength(s.slice(i));
-			}
-			return i + 1;
+			};
+			return scan(1, t ? ')' : ']');
 		},
 		escapeStr = str => '"' + str.replace(/[\ud800-\udbff][\udc00-\udfff]|([\ud800-\udfff])|([\r\n\\"])/g, (p0, p1, p2) => {
 			if (p1) {
@@ -161,13 +358,13 @@
 						}
 						v = v.replace(/^(?:function(?![\d\w$])(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*)?(?:\*(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*)?/, '');
 						if (v[0] === '[') {
-							v = v.slice(sectionlength(v, 0, 0));
+							v = v.slice(sectionlength(v, false));
 							v = v.slice(blanklength(v));
 						} else {
 							v = v.replace(/(?:[\w$][\d\w$]*(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*(?=\())?/, '');
 						}
 						if (v[0] === '(') {
-							const l = sectionlength(v, 1, 0);
+							const l = sectionlength(v, true);
 							s = v.slice(0, l).replace(/^\(\s*|\s*\)$/g, '');
 							v = v.slice(l);
 						} else {
@@ -204,6 +401,9 @@
 										c.push('[' + v + ',' + m + ']');
 									}
 								}
+							}
+							if (options.sorting) {
+								c.sort();
 							}
 							s = 'new Map' + (c.length ? '([' + c.join(',') + '])' : '');
 						} else if (t === 'Set') {
@@ -517,7 +717,7 @@
 					}
 				} else if (ml) {
 					mf = str.slice(l).parseJsex(forbiddenMethods);
-					if (mf && (mm = typeof mf.value === 'string') || Array.isArray(mf.value) && mf.value.length === 1 && ['symbol', 'string'].includes(typeof mf.value[0])) {
+					if (mf && ((mm = typeof mf.value === 'string') || Array.isArray(mf.value) && mf.value.length === 1 && ['symbol', 'string'].includes(typeof mf.value[0]))) {
 						l += mf.length;
 						l += blanklength(str.slice(l));
 						mm = mm ? mf.value === '__proto__' ? null : mf.value : mf.value[0];
@@ -567,7 +767,7 @@
 						if (p1) {
 							return String.fromCharCode('0o' + p1);
 						} else if (p2 || p3) {
-							return String.fromCharCode('0x' + (p2 | p3));
+							return String.fromCharCode('0x' + (p2 || p3));
 						} else if (p4) {
 							return String.fromCodePoint('0x' + p4);
 						} else if (p5) {
