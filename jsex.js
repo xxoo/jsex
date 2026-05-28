@@ -6,7 +6,6 @@
 		blanklength = str => str.match(/^(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/)[0].length,
 		// t = false for computed name, t = true for params. Input is assumed to be valid Function#toString() output.
 		sectionlength = (s, t) => {
-			let scan;
 			const isLine = c => c === '\n' || c === '\r' || c === '\u2028' || c === '\u2029',
 				isIdPart = c => /[\dA-Za-z_$]/.test(c),
 				isPunct = c => c === undefined || /[\s()[\]{}"'`/\\.,;?:~!%^&*+\-=<>|]/.test(c),
@@ -93,173 +92,173 @@
 						}
 					}
 					return i + 1;
-				};
-			scan = (i, end) => {
-				const stack = [{
-					close: end,
-					kind: 'root'
-				}];
-				let arrowBody = false,
-					asyncStart,
-					classState,
-					control = false,
-					controlBody = false,
-					expr = true,
-					fn,
-					fnBody,
-					methodBody = false,
-					statementStart = false;
-				const push = c => {
-					stack.push(c);
-					expr = true;
-					statementStart = ['block', 'function', 'arrow'].includes(c.kind);
 				},
-					pop = () => {
-						const c = stack.pop();
-						if (c.kind === 'root') return true;
-						if (c.kind === 'fnParams') {
-							fnBody = c.after;
-							expr = true;
-						} else if (c.kind === 'control') {
-							controlBody = true;
-							expr = statementStart = true;
-						} else {
-							if (c.kind === 'paren' && ['object', 'class'].includes(stack[stack.length - 1].kind)) methodBody = true;
-							expr = c.after;
-							statementStart = c.kind === 'block';
-						}
+				scan = (i, end) => {
+					const stack = [{
+						close: end,
+						kind: 'root'
+					}];
+					let arrowBody = false,
+						asyncStart,
+						classState,
+						control = false,
+						controlBody = false,
+						expr = true,
+						fn,
+						fnBody,
+						methodBody = false,
+						statementStart = false;
+					const push = c => {
+						stack.push(c);
+						expr = true;
+						statementStart = ['block', 'function', 'arrow'].includes(c.kind);
 					},
-					clearBody = c => {
-						if (c !== '{') arrowBody = controlBody = methodBody = false;
-					};
-				while (i < s.length) {
-					const c = s[i],
-						top = stack[stack.length - 1];
-					if (/\s/.test(c)) {
-						++i;
-					} else if (s.slice(i, i + 2) === '//') {
-						i = lineComment(i + 2);
-					} else if (s.slice(i, i + 2) === '/*') {
-						i = blockComment(i);
-					} else if (s.slice(i, i + 4) === '<!--') {
-						i = lineComment(i + 4);
-					} else if (c === top.close) {
-						++i;
-						if (pop()) return i;
-					} else if (c === '"' || c === '\'') {
-						clearBody(c);
-						i = string(i);
-						expr = statementStart = false;
-						asyncStart = undefined;
-					} else if (c === '`') {
-						clearBody(c);
-						i = template(i);
-						expr = statementStart = false;
-						asyncStart = undefined;
-					} else if (c === '/') {
-						clearBody(c);
-						asyncStart = undefined;
-						if (expr) {
-							const n = regex(i);
-							if (n) {
-								i = n;
-								expr = statementStart = false;
+						pop = () => {
+							const c = stack.pop();
+							if (c.kind === 'root') return true;
+							if (c.kind === 'fnParams') {
+								fnBody = c.after;
+								expr = true;
+							} else if (c.kind === 'control') {
+								controlBody = true;
+								expr = statementStart = true;
+							} else {
+								if (c.kind === 'paren' && ['object', 'class'].includes(stack[stack.length - 1].kind)) methodBody = true;
+								expr = c.after;
+								statementStart = c.kind === 'block';
+							}
+						},
+						clearBody = c => {
+							if (c !== '{') arrowBody = controlBody = methodBody = false;
+						};
+					while (i < s.length) {
+						const c = s[i],
+							top = stack[stack.length - 1];
+						if (/\s/.test(c)) {
+							++i;
+						} else if (s.slice(i, i + 2) === '//') {
+							i = lineComment(i + 2);
+						} else if (s.slice(i, i + 2) === '/*') {
+							i = blockComment(i);
+						} else if (s.slice(i, i + 4) === '<!--') {
+							i = lineComment(i + 4);
+						} else if (c === top.close) {
+							++i;
+							if (pop()) return i;
+						} else if (c === '"' || c === '\'') {
+							clearBody(c);
+							i = string(i);
+							expr = statementStart = false;
+							asyncStart = undefined;
+						} else if (c === '`') {
+							clearBody(c);
+							i = template(i);
+							expr = statementStart = false;
+							asyncStart = undefined;
+						} else if (c === '/') {
+							clearBody(c);
+							asyncStart = undefined;
+							if (expr) {
+								const n = regex(i);
+								if (n) {
+									i = n;
+									expr = statementStart = false;
+								} else {
+									++i;
+								}
 							} else {
 								++i;
+								expr = true;
 							}
-						} else {
+						} else if (c === '(') {
+							clearBody(c);
+							push(fn ? {
+								after: fn.after,
+								close: ')',
+								kind: 'fnParams'
+							} : control ? {
+								close: ')',
+								kind: 'control'
+							} : {
+								after: false,
+								close: ')',
+								kind: 'paren'
+							});
+							fn = control = false;
+							asyncStart = undefined;
 							++i;
-							expr = true;
-						}
-					} else if (c === '(') {
-						clearBody(c);
-						push(fn ? {
-							after: fn.after,
-							close: ')',
-							kind: 'fnParams'
-						} : control ? {
-							close: ')',
-							kind: 'control'
-						} : {
-							after: false,
-							close: ')',
-							kind: 'paren'
-						});
-						fn = control = false;
-						asyncStart = undefined;
-						++i;
-					} else if (c === '[') {
-						clearBody(c);
-						asyncStart = undefined;
-						push({
-							after: false,
-							close: ']',
-							kind: 'bracket'
-						});
-						++i;
-					} else if (c === '{') {
-						asyncStart = undefined;
-						const kind = fnBody !== undefined || methodBody ? 'function' : arrowBody ? 'arrow' : classState && classState.depth === stack.length ? 'class' : controlBody || statementStart || !expr ? 'block' : 'object';
-						push({
-							after: kind === 'block' ? true : kind === 'function' ? fnBody : kind === 'class' ? classState.after : false,
-							close: '}',
-							kind
-						});
-						if (kind === 'class') classState = false;
-						fnBody = undefined;
-						arrowBody = controlBody = methodBody = false;
-						++i;
-					} else if (/\d/.test(c) || c === '.' && /\d/.test(s[i + 1])) {
-						clearBody(c);
-						i = number(i);
-						expr = statementStart = false;
-						asyncStart = undefined;
-					} else if (/[A-Za-z_$\\]/.test(c) || !isPunct(c)) {
-						const w = word(i);
-						let k = w[0];
-						clearBody(c);
-						i = w[1];
-						if (!w[2] && k === 'async') {
-							asyncStart = statementStart;
+						} else if (c === '[') {
+							clearBody(c);
+							asyncStart = undefined;
+							push({
+								after: false,
+								close: ']',
+								kind: 'bracket'
+							});
+							++i;
+						} else if (c === '{') {
+							asyncStart = undefined;
+							const kind = fnBody !== undefined || methodBody ? 'function' : arrowBody ? 'arrow' : classState && classState.depth === stack.length ? 'class' : controlBody || statementStart || !expr ? 'block' : 'object';
+							push({
+								after: kind === 'block' ? true : kind === 'function' ? fnBody : kind === 'class' ? classState.after : false,
+								close: '}',
+								kind
+							});
+							if (kind === 'class') classState = false;
+							fnBody = undefined;
+							arrowBody = controlBody = methodBody = false;
+							++i;
+						} else if (/\d/.test(c) || c === '.' && /\d/.test(s[i + 1])) {
+							clearBody(c);
+							i = number(i);
 							expr = statementStart = false;
-						} else {
-							if (!w[2] && k === 'function') {
-								fn = {
-									after: asyncStart !== undefined ? asyncStart : statementStart
-								};
-								asyncStart = undefined;
-							} else if (!w[2] && k === 'class') {
-								classState = {
-									after: statementStart,
-									depth: stack.length
-								};
-								asyncStart = undefined;
-								expr = true;
-							} else if (!w[2] && ['if', 'while', 'for', 'with', 'switch', 'catch'].includes(k)) {
-								asyncStart = undefined;
-								control = expr = true;
-							} else if (!w[2] && ['return', 'throw', 'case', 'delete', 'void', 'typeof', 'new', 'in', 'instanceof', 'extends', 'of', 'yield', 'await', 'else', 'do'].includes(k)) {
-								asyncStart = undefined;
-								expr = true;
+							asyncStart = undefined;
+						} else if (/[A-Za-z_$\\]/.test(c) || !isPunct(c)) {
+							const w = word(i);
+							let k = w[0];
+							clearBody(c);
+							i = w[1];
+							if (!w[2] && k === 'async') {
+								asyncStart = statementStart;
+								expr = statementStart = false;
 							} else {
-								asyncStart = undefined;
-								expr = false;
+								if (!w[2] && k === 'function') {
+									fn = {
+										after: asyncStart !== undefined ? asyncStart : statementStart
+									};
+									asyncStart = undefined;
+								} else if (!w[2] && k === 'class') {
+									classState = {
+										after: statementStart,
+										depth: stack.length
+									};
+									asyncStart = undefined;
+									expr = true;
+								} else if (!w[2] && ['if', 'while', 'for', 'with', 'switch', 'catch'].includes(k)) {
+									asyncStart = undefined;
+									control = expr = true;
+								} else if (!w[2] && ['return', 'throw', 'case', 'delete', 'void', 'typeof', 'new', 'in', 'instanceof', 'extends', 'of', 'yield', 'await', 'else', 'do'].includes(k)) {
+									asyncStart = undefined;
+									expr = true;
+								} else {
+									asyncStart = undefined;
+									expr = false;
+								}
+								statementStart = false;
 							}
-							statementStart = false;
+						} else if (s.slice(i, i + 2) === '=>') {
+							i += 2;
+							arrowBody = expr = true;
+							asyncStart = undefined;
+						} else {
+							clearBody(c);
+							i += s.slice(i, i + 3) === '...' ? 3 : s.slice(i, i + 2) === '++' || s.slice(i, i + 2) === '--' ? 2 : 1;
+							expr = c === '.' ? false : !')]}'.includes(c);
+							statementStart = c === ';';
+							asyncStart = undefined;
 						}
-					} else if (s.slice(i, i + 2) === '=>') {
-						i += 2;
-						arrowBody = expr = true;
-						asyncStart = undefined;
-					} else {
-						clearBody(c);
-						i += s.slice(i, i + 3) === '...' ? 3 : s.slice(i, i + 2) === '++' || s.slice(i, i + 2) === '--' ? 2 : 1;
-						expr = c === '.' ? false : !')]}'.includes(c);
-						statementStart = c === ';';
-						asyncStart = undefined;
 					}
-				}
-			};
+				};
 			return scan(1, t ? ')' : ']');
 		},
 		escapeStr = str => '"' + str.replace(/[\ud800-\udbff][\udc00-\udfff]|([\ud800-\udfff])|([\r\n\\"])/g, (p0, p1, p2) => {
