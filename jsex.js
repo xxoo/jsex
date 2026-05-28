@@ -41,7 +41,7 @@
 									flagStart = ++i;
 								while (isIdPart(s[i])) ++i;
 								try {
-									RegExpConstructor(body, s.slice(flagStart, i));
+									RegExp(body, s.slice(flagStart, i));
 									return i;
 								} catch (e) { }
 							}
@@ -791,7 +791,7 @@
 					})
 				};
 			} catch (e) { }
-		} else if (m = str.match(/^\/(?!\*)((?:[^[/\\\r\n\u2028\u2029]|\\.|\[(?:[^\r\n\u2028\u2029\]\\]|\\.)*\])+)\/(g?i?m?s?u?y?)/)) {
+		} else if (m = str.match(/^\/(?!\*)((?:[^[/\\\r\n\u2028\u2029]|\\.|\[(?:[^\r\n\u2028\u2029\]\\]|\\.)*\])+)\/(d?g?i?m?s?u?y?)/)) {
 			try {
 				r = {
 					__proto__: null,
