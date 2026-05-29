@@ -32,8 +32,8 @@ const parse = source => {
 		cases = [
 			[named, 'function(a) { return a; }', value => assert.strictEqual(value(2), 2)],
 			[anon, 'function(a) { return a; }', value => assert.strictEqual(value(2), 2)],
-			[arrow, 'a => a', value => assert.strictEqual(value(2), 2)],
-			[asyncArrow, 'async a => a', async value => assert.strictEqual(await value(2), 2)],
+			[arrow, '(a)=>{return a}', value => assert.strictEqual(value(2), 2)],
+			[asyncArrow, 'async (a)=>{return a}', async value => assert.strictEqual(await value(2), 2)],
 			[gen, 'function*(a) { yield a; }', value => assert.strictEqual(value(2).next().value, 2)],
 			[asyncFn, 'async function(a) { return a; }', async value => assert.strictEqual(await value(2), 2)],
 			[asyncGen, 'async function*(a) { yield a; }', async value => assert.strictEqual((await value(2).next()).value, 2)],
@@ -69,19 +69,66 @@ const parse = source => {
 	assert.strictEqual(accessorValue.setterOnly, undefined);
 	assert(!('value' in accessorValue));
 
+	let result = '\n/* lead */ // line\n[1,2]'.parseJsex();
+	assert(result);
+	assert.strictEqual(result.length, '\n/* lead */ // line\n[1,2]'.length);
+	assert.deepStrictEqual(result.value, [1, 2]);
+
+	result = 'nullx'.parseJsex();
+	assert(result);
+	assert.strictEqual(result.length, 'null'.length);
+	assert.strictEqual(result.value, null);
+	result = 'truex'.parseJsex();
+	assert(result);
+	assert.strictEqual(result.length, 'true'.length);
+	assert.strictEqual(result.value, true);
+	result = 'new Setx'.parseJsex();
+	assert(result);
+	assert.strictEqual(result.length, 'new Set'.length);
+	assert.strictEqual(result.value.size, 0);
+	assert.strictEqual(parse('new Date(5)').getTime(), 5);
+	assert.deepStrictEqual([...parse('new Map([[1,"one"]])')], [[1, 'one']]);
+	assert.deepStrictEqual([...parse('new Uint16Array([1,2])')], [1, 2]);
+	assert.strictEqual(parse('Symbol.iterator'), Symbol.iterator);
+	assert.strictEqual(parse('Error("bad")').message, 'bad');
+	assert.strictEqual(parse('SyntaxError("bad")').message, 'bad');
+	assert.strictEqual(parse('/a/g').global, true);
+	assert.strictEqual(parse('(a)=>{return a}')(3), 3);
+
+	const nested = parse('{"items":[/*a*/new Date(5), new Set([1,"x"]), new Map([[1,"one"]]), Symbol.for("jsex-test"), new Uint8Array([1,2]), TypeError("bad")],"__proto__":null}');
+	assert.strictEqual(nested.items[0].getTime(), 5);
+	assert.deepStrictEqual([...nested.items[1]], [1, 'x']);
+	assert.deepStrictEqual([...nested.items[2]], [[1, 'one']]);
+	assert.strictEqual(nested.items[3], Symbol.for('jsex-test'));
+	assert.deepStrictEqual([...nested.items[4]], [1, 2]);
+	assert.strictEqual(nested.items[5].message, 'bad');
+	assert(!('__proto__' in nested));
+
 	delete globalThis.__jsexInjected;
-	let result = 'function(){};globalThis.__jsexInjected=1'.parseJsex();
+	result = 'function(){};globalThis.__jsexInjected=1'.parseJsex();
 	assert(result);
 	assert.strictEqual(result.length, 'function(){}'.length);
 	assert.strictEqual(typeof result.value, 'function');
 	assert.strictEqual(globalThis.__jsexInjected, undefined);
 
 	result = 'a=>a;globalThis.__jsexInjected=1'.parseJsex();
-	assert(result);
-	assert.strictEqual(result.length, 'a=>a'.length);
-	assert.strictEqual(result.value(4), 4);
+	assert.strictEqual(result, undefined);
 	assert.strictEqual(globalThis.__jsexInjected, undefined);
 
+	result = '()=>globalThis.__jsexInjected=1'.parseJsex();
+	assert.strictEqual(result, undefined);
+	assert.strictEqual(globalThis.__jsexInjected, undefined);
+
+	result = '()=>{globalThis.__jsexInjected=1};globalThis.__jsexInjected=2'.parseJsex();
+	assert(result);
+	assert.strictEqual(result.length, '()=>{globalThis.__jsexInjected=1}'.length);
+	assert.strictEqual(globalThis.__jsexInjected, undefined);
+	result.value();
+	assert.strictEqual(globalThis.__jsexInjected, 1);
+	delete globalThis.__jsexInjected;
+
+	assert.strictEqual('Function("globalThis.__jsexInjected=1")'.parseJsex(), undefined);
+	assert.strictEqual('(async()=>{}).constructor("globalThis.__jsexInjected=1")'.parseJsex(), undefined);
 	result = 'function*(){}.constructor("a","yield a")'.parseJsex();
 	assert(result);
 	assert.strictEqual(result.length, 'function*(){}'.length);

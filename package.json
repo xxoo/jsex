@@ -4,11 +4,12 @@
 	"description": "data serialization/deserialization for javascript",
 	"main": "jsex.js",
 	"scripts": {
+		"benchmark": "node benchmark.js",
 		"test": "node test.js"
 	},
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/xxoo/jsex.git"
+		"url": "git+https://github.com/xxoo/jsex.git"
 	},
 	"keywords": [
 		"serialization",
