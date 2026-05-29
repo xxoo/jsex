@@ -1,25 +1,76 @@
-// jsex version: 1.0.33
+// jsex version: 2.0.1
 // https://github.com/xxoo/jsex
 (() => {
 	'use strict';
 	const implicitMethods = new Set(['toString', 'toJSON', 'valueOf']),
 		blanklength = str => str.match(/^(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/)[0].length,
-		// t = false for computed name, t = true for params. Input is assumed to be valid Function#toString() output.
+		isLine = c => c === '\n' || c === '\r' || c === '\u2028' || c === '\u2029',
+		isIdPart = c => /[\dA-Za-z_$]/.test(c),
+		isPunct = c => c === undefined || /[\s()[\]{}"'`/\\.,;?:~!%^&*+\-=<>|]/.test(c),
+		skipblank = (s, i = 0) => i + blanklength(s.slice(i)),
+		blockcommentlength = (s, i) => {
+			const n = s.indexOf('*/', i + 2);
+			return n < 0 ? undefined : n + 2;
+		},
+		linecommentlength = (s, i) => {
+			while (i < s.length && !isLine(s[i])) ++i;
+			return i;
+		},
+		stringlength = (s, i) => {
+			const q = s[i++];
+			while (i < s.length && s[i] !== q) {
+				i += s[i] === '\\' ? isLine(s[i + 1]) && s[i + 1] === '\r' && s[i + 2] === '\n' ? 3 : 2 : 1;
+			}
+			return i < s.length ? i + 1 : undefined;
+		},
+		regexlength = (s, i) => {
+			let c,
+				inClass = false,
+				start = ++i;
+			while (i < s.length) {
+				c = s[i];
+				if (c === '\\') {
+					i += 2;
+				} else if (inClass) {
+					inClass = c !== ']';
+					++i;
+				} else if (c === '[') {
+					inClass = true;
+					++i;
+				} else if (c === '/' || isLine(c)) {
+					if (c === '/') {
+						const body = s.slice(start, i),
+							flagStart = ++i;
+						while (isIdPart(s[i])) ++i;
+						try {
+							RegExp(body, s.slice(flagStart, i));
+							return i;
+						} catch (e) { }
+					}
+					return;
+				} else {
+					++i;
+				}
+			}
+		},
+		wordlength = (s, i = 0) => {
+			const m = s.slice(i).match(/^(?:[A-Za-z_$][\dA-Za-z_$]*|[^\s()[\]{}"'`/\\.,;?:~!%^&*+\-=<>|]+)/);
+			return m ? m[0].length : 0;
+		},
+		isWord = (s, i, w) => s.slice(i, i + w.length) === w && isPunct(s[i + w.length]),
+		// t is the closing character
 		sectionlength = (s, t) => {
-			const isLine = c => c === '\n' || c === '\r' || c === '\u2028' || c === '\u2029',
-				isIdPart = c => /[\dA-Za-z_$]/.test(c),
-				isPunct = c => c === undefined || /[\s()[\]{}"'`/\\.,;?:~!%^&*+\-=<>|]/.test(c),
+			const blockComment = i => blockcommentlength(s, i),
 				lineComment = i => {
 					while (i < s.length && !isLine(s[i])) ++i;
 					return i;
 				},
-				blockComment = i => s.indexOf('*/', i + 2) + 2,
 				string = i => {
 					const q = s[i++];
-					while (s[i] !== q) {
+					while (i < s.length && s[i] !== q) {
 						i += s[i] === '\\' ? isLine(s[i + 1]) && s[i + 1] === '\r' && s[i + 2] === '\n' ? 3 : 2 : 1;
 					}
-					return i + 1;
+					return i < s.length ? i + 1 : undefined;
 				},
 				regex = i => {
 					let c,
@@ -55,8 +106,8 @@
 				unicodeEscape = i => {
 					if (s[i + 2] !== '{') return i + 6;
 					i += 3;
-					while (s[i] !== '}') ++i;
-					return i + 1;
+					while (i < s.length && s[i] !== '}') ++i;
+					return i < s.length ? i + 1 : undefined;
 				},
 				word = i => {
 					const start = i;
@@ -82,16 +133,17 @@
 				},
 				template = i => {
 					++i;
-					while (s[i] !== '`') {
+					while (i < s.length && s[i] !== '`') {
 						if (s[i] === '\\') {
 							i += 2;
 						} else if (s[i] === '$' && s[i + 1] === '{') {
 							i = scan(i + 2, '}');
+							if (i === undefined) return;
 						} else {
 							++i;
 						}
 					}
-					return i + 1;
+					return i < s.length ? i + 1 : undefined;
 				},
 				scan = (i, end) => {
 					const stack = [{
@@ -140,6 +192,7 @@
 							i = lineComment(i + 2);
 						} else if (s.slice(i, i + 2) === '/*') {
 							i = blockComment(i);
+							if (i === undefined) return;
 						} else if (s.slice(i, i + 4) === '<!--') {
 							i = lineComment(i + 4);
 						} else if (c === top.close) {
@@ -148,11 +201,13 @@
 						} else if (c === '"' || c === '\'') {
 							clearBody(c);
 							i = string(i);
+							if (i === undefined) return;
 							expr = statementStart = false;
 							asyncStart = undefined;
 						} else if (c === '`') {
 							clearBody(c);
 							i = template(i);
+							if (i === undefined) return;
 							expr = statementStart = false;
 							asyncStart = undefined;
 						} else if (c === '/') {
@@ -218,6 +273,7 @@
 							let k = w[0];
 							clearBody(c);
 							i = w[1];
+							if (i === undefined) return;
 							if (!w[2] && k === 'async') {
 								asyncStart = statementStart;
 								expr = statementStart = false;
@@ -259,7 +315,185 @@
 						}
 					}
 				};
-			return scan(1, t ? ')' : ']');
+			return scan(1, t);
+		},
+		methodnamelength = (s, i) => {
+			let l;
+			if (s[i] === '[') {
+				return sectionlength(s.slice(i), ']');
+			} else if (s[i] === '"' || s[i] === '\'') {
+				l = stringlength(s, i);
+				return l && l - i;
+			} else {
+				l = wordlength(s, i);
+				if (l) return l;
+				while (i + l < s.length && !/\s/.test(s[i + l]) && !'({'.includes(s[i + l])) ++l;
+				return l;
+			}
+		},
+		methodparts = (s, i) => {
+			let l = methodnamelength(s, i);
+			if (!l) return;
+			i = skipblank(s, i + l);
+			if (s[i] === '(') {
+				l = sectionlength(s.slice(i), ')');
+				if (!l) return;
+				return [s.slice(i, i + l), i + l];
+			} else if (s[i] === '{') {
+				return ['()', i];
+			}
+		},
+		functionsource = v => {
+			let i = 0,
+				isAsync = false,
+				isGenerator = false,
+				l;
+			if (functionlength(v) === v.length && !isWord(v, 0, 'function') && !isWord(v, skipblank(v, isWord(v, 0, 'async') ? 5 : 0), 'function')) return v;
+			if (isWord(v, 0, 'async')) {
+				const n = skipblank(v, 5);
+				if (n > 5) {
+					isAsync = true;
+					i = n;
+				}
+			}
+			if (isWord(v, i, 'function')) {
+				i = skipblank(v, i + 8);
+				if (v[i] === '*') {
+					isGenerator = true;
+					i = skipblank(v, i + 1);
+				}
+				if (v[i] !== '(') {
+					l = methodnamelength(v, i);
+					if (!l) return;
+					i = skipblank(v, i + l);
+				}
+				return (isAsync ? 'async ' : '') + 'function' + (isGenerator ? '*' : '') + v.slice(i);
+			}
+			i = skipblank(v, i);
+			if (v[i] === '*') {
+				isGenerator = true;
+				i = skipblank(v, i + 1);
+			}
+			if ((isWord(v, i, 'get') || isWord(v, i, 'set')) && skipblank(v, i + 3) > i + 3) {
+				i = skipblank(v, i + 3);
+			}
+			const p = methodparts(v, i);
+			if (!p) return;
+			return (isAsync ? 'async ' : '') + 'function' + (isGenerator ? '*' : '') + p[0] + v.slice(p[1]);
+		},
+		expressionlength = (s, i) => {
+			const start = i;
+			let expr = true;
+			while (i < s.length) {
+				const c = s[i];
+				let l;
+				if (',;)]}'.includes(c)) {
+					return i > start ? i : undefined;
+				} else if (/\s/.test(c)) {
+					++i;
+				} else if (s.slice(i, i + 2) === '//') {
+					i = linecommentlength(s, i + 2);
+				} else if (s.slice(i, i + 2) === '/*') {
+					i = blockcommentlength(s, i);
+					if (i === undefined) return;
+				} else if (c === '"' || c === '\'') {
+					i = stringlength(s, i);
+					if (i === undefined) return;
+					expr = false;
+				} else if (c === '`') {
+					l = sectionlength(s.slice(i), '`');
+					if (!l) return;
+					i += l;
+					expr = false;
+				} else if (c === '(') {
+					l = sectionlength(s.slice(i), ')');
+					if (!l) return;
+					i += l;
+					expr = false;
+				} else if (c === '[') {
+					l = sectionlength(s.slice(i), ']');
+					if (!l) return;
+					i += l;
+					expr = false;
+				} else if (c === '{') {
+					l = sectionlength(s.slice(i), '}');
+					if (!l) return;
+					i += l;
+					expr = false;
+				} else if (c === '/') {
+					if (expr && (l = regexlength(s, i))) {
+						i = l;
+						expr = false;
+					} else {
+						++i;
+						expr = true;
+					}
+				} else if (/[A-Za-z_$]/.test(c) || !isPunct(c)) {
+					i += wordlength(s, i) || 1;
+					expr = false;
+				} else {
+					i += s.slice(i, i + 3) === '...' ? 3 : s.slice(i, i + 2) === '++' || s.slice(i, i + 2) === '--' ? 2 : 1;
+					expr = c === '.' ? false : !')]}'.includes(c);
+				}
+			}
+			return i > start ? i : undefined;
+		},
+		arrowlength = s => {
+			const body = i => {
+				i = skipblank(s, i);
+				if (s[i] === '{') {
+					const l = sectionlength(s.slice(i), '}');
+					return l && i + l;
+				}
+				return expressionlength(s, i);
+			},
+				afterparams = i => {
+					i = skipblank(s, i);
+					return s.slice(i, i + 2) === '=>' ? body(i + 2) : undefined;
+				};
+			let i, l;
+			if (isWord(s, 0, 'async')) {
+				i = skipblank(s, 5);
+				if (i > 5 || s[i] === '(') {
+					if (s[i] === '(') {
+						l = sectionlength(s.slice(i), ')');
+						if (l && (l = afterparams(i + l))) return l;
+					} else if (l = wordlength(s, i)) {
+						l = afterparams(i + l);
+						if (l) return l;
+					}
+				}
+			}
+			if (s[0] === '(') {
+				l = sectionlength(s, ')');
+				return l && afterparams(l);
+			} else if (l = wordlength(s)) {
+				return afterparams(l);
+			}
+		},
+		functionlength = s => {
+			let i = 0,
+				l;
+			l = arrowlength(s);
+			if (l) return l;
+			if (isWord(s, 0, 'async')) {
+				i = skipblank(s, 5);
+				if (i === 5) return;
+			}
+			if (!isWord(s, i, 'function')) return;
+			i = skipblank(s, i + 8);
+			if (s[i] === '*') {
+				i = skipblank(s, i + 1);
+			}
+			if (s[i] !== '(') {
+				l = methodnamelength(s, i);
+				if (!l) return;
+				i = skipblank(s, i + l);
+			}
+			if (s[i] !== '(' || !(l = sectionlength(s.slice(i), ')'))) return;
+			i = skipblank(s, i + l);
+			if (s[i] !== '{' || !(l = sectionlength(s.slice(i), '}'))) return;
+			return i + l;
 		},
 		escapeStr = str => '"' + str.replace(/[\ud800-\udbff][\udc00-\udfff]|([\ud800-\udfff])|([\r\n\\"])/g, (p0, p1, p2) => {
 			if (p1) {
@@ -344,35 +578,8 @@
 							throw TypeError('class is not supported by default');
 						}
 					} else {
-						// these constructors are not global by default
-						const c = {
-							AsyncFunction: '(async()=>{}).constructor',
-							GeneratorFunction: 'function*(){}.constructor',
-							AsyncGeneratorFunction: 'async function*(){}.constructor',
-							__proto__: null
-						};
-						t = getRealType(data);
-						if (t[0] === 'A') {
-							v = v.replace(/^async(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/, '');
-						}
-						v = v.replace(/^(?:function(?![\d\w$])(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*)?(?:\*(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*)?/, '');
-						if (v[0] === '[') {
-							v = v.slice(sectionlength(v, false));
-							v = v.slice(blanklength(v));
-						} else {
-							v = v.replace(/(?:[\w$][\d\w$]*(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*(?=\())?/, '');
-						}
-						if (v[0] === '(') {
-							const l = sectionlength(v, true);
-							s = v.slice(0, l).replace(/^\(\s*|\s*\)$/g, '');
-							v = v.slice(l);
-						} else {
-							s = v.match(/^[\w$][\d\w$]*/)[0];
-							v = v.slice(s.length);
-						}
-						v = v.slice(blanklength(v)).replace(/^=>(?:\s|\/\*(?:[^*]|\*(?!\/))*\*\/|\/\/.*)*/, '');
-						v = v[0] === '{' ? v.replace(/^\{\s*|\s*\}$/g, '') : 'return ' + v;
-						s = (t in c ? c[t] : 'Function') + (v ? `(${s ? escapeStr(s) + ',' : ''}${escapeStr(v)})` : '()');
+						s = functionsource(v);
+						if (s === undefined && options.debug) throw TypeError('unable to serialize function');
 					}
 				} else {
 					t = getRealType(data);
@@ -745,6 +952,14 @@
 					value: m
 				};
 			}
+		} else if (l = functionlength(str)) {
+			try {
+				r = {
+					__proto__: null,
+					length: l + p,
+					value: Function('return ' + str.slice(0, l))()
+				};
+			} catch (e) { }
 		} else if (m = str.match(/^(-?)([1-9]\d*|0(?:[bB][01]+|[oO][0-7]+|[xX][\dA-Fa-f]+)?)n/)) {
 			r = {
 				__proto__: null,
@@ -811,9 +1026,9 @@
 					};
 				} catch (e) { }
 			}
-		} else if (m = str.match(/^(?:((?:Eval|Range|Reference|Syntax|Type|URI)?Error|Function)|(?:(\(async ?\( ?\) ?=> ?\{ ?\}\))|(async )?function\* ?\( ?\) ?\{ ?\})\.constructor)\(/)) {
+		} else if (m = str.match(/^((?:Eval|Range|Reference|Syntax|Type|URI)?Error)\(/)) {
 			l = m[0].length;
-			const c = m[1] ? globalThis[m[1]] : m[2] ? (async () => { }).constructor : m[3] ? async function* () { }.constructor : function* () { }.constructor;
+			const c = globalThis[m[1]];
 			if (str[l] === ')') {
 				r = {
 					__proto__: null,

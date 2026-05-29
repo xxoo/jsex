@@ -28,6 +28,7 @@ By calling `toJsex(data, options)`.
   - `implicitConversion`: Whether attempts to resolve unrecognized type by calling its `valueOf` method.
   - `jsonCompatible`: Whether generating JSON compatible string.
   - `debug`: Whether throw error for unexpected data instead of skip them silently. eg: native functions, cyclic references, etc.
+* Functions are serialized as function literals. Function names are removed, arrow functions keep their arrow form, and standalone method/accessor functions are normalized to equivalent function expressions.
 ### serializing example:
 ```javascript
 require('jsex');
@@ -38,8 +39,8 @@ let data = {
   normalKey: 'valueForNormalKey'
 };
 console.log('normal:', toJsex(data), '\nsorted:', toJsex(data, {sorting: true}));
-//normal: {"someRegex":/\r\u2028\n\ud800/gi,"someSet":new Set([Function("a","return a"),1,0n]),"normalKey":"valueForNormalKey",[Symbol.for("symbolKey")]:"valueForSymbolKey","__proto__":null}
-//sorted: {"normalKey":"valueForNormalKey","someRegex":/\r\u2028\n\ud800/gi,"someSet":new Set([0n,1,Function("a","return a")]),[Symbol.for("symbolKey")]:"valueForSymbolKey","__proto__":null}
+//normal: {"someRegex":/\r\u2028\n\ud800/gi,"someSet":new Set([a => a,1,0n]),"normalKey":"valueForNormalKey",[Symbol.for("symbolKey")]:"valueForSymbolKey","__proto__":null}
+//sorted: {"normalKey":"valueForNormalKey","someRegex":/\r\u2028\n\ud800/gi,"someSet":new Set([0n,1,a => a]),[Symbol.for("symbolKey")]:"valueForSymbolKey","__proto__":null}
 try {
   JSON.parse(toJsex(data, {jsonCompatible: true}));
 } catch(e) {

@@ -1,8 +1,11 @@
 {
 	"name": "jsex",
-	"version": "1.0.33",
+	"version": "2.0.1",
 	"description": "data serialization/deserialization for javascript",
 	"main": "jsex.js",
+	"scripts": {
+		"test": "node test.js"
+	},
 	"repository": {
 		"type": "git",
 		"url": "https://github.com/xxoo/jsex.git"
