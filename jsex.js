@@ -1,4 +1,4 @@
-// jsex version: 2.0.1
+// jsex version: 2.0.2
 // https://github.com/xxoo/jsex
 (() => {
 	'use strict';
@@ -36,6 +36,10 @@
 		isIdPart = c => c !== undefined && /[\dA-Za-z_$]/.test(c),
 		isPunct = c => c === undefined || /[\s()[\]{}"'`/\\.,;?:~!%^&*+\-=<>|]/.test(c),
 		skipblank = (s, i = 0) => i + blanklength(s, i),
+		trimblankend = (s, start, end) => {
+			while (end > start && /\s/.test(s[end - 1])) --end;
+			return end;
+		},
 		matchAt = (r, s, i) => {
 			r.lastIndex = i;
 			return r.exec(s);
@@ -310,15 +314,6 @@
 				}
 			}
 		},
-		wordlength = (s, i = 0) => {
-			const start = i;
-			if (isIdStart(s[i])) {
-				while (isIdPart(s[++i]));
-			} else {
-				while (!isPunct(s[i])) ++i;
-			}
-			return i - start;
-		},
 		isWord = (s, i, w) => s.startsWith(w, i) && isPunct(s[i + w.length]),
 		methodnamelength = (s, i) => {
 			let l;
@@ -329,150 +324,137 @@
 				l = stringlength(s, i);
 				return l && l - i;
 			} else {
-				l = wordlength(s, i);
-				if (l) return l;
-				while (i + l < s.length && !/\s/.test(s[i + l]) && !'({'.includes(s[i + l])) ++l;
-				return l;
-			}
-		},
-		methodparts = (s, i) => {
-			let l = methodnamelength(s, i);
-			if (!l) return;
-			i = skipblank(s, i + l);
-			if (s[i] === '(') {
-				l = sectionlength(s, i, ')');
-				if (!l) return;
-				return [s.slice(i, l), l];
-			} else if (s[i] === '{') {
-				return ['()', i];
+				const start = i,
+					m = matchAt(jsNumberTokenRegExp, s, i);
+				if (m) return jsNumberTokenRegExp.lastIndex - i;
+				while (!isPunct(s[i])) ++i;
+				return i - start;
 			}
 		},
 		functionsource = v => {
-			let l, i = 0,
-				isAsync = false,
-				isGenerator = false,
-				s = arrowsource(v);
-			if (s !== undefined) return s;
+			let bodyEnd, bodyStart, l, nameEnd, nameStart, paramsEnd, paramsStart, isArrow, isBlock, isGenerator, isAsync,
+				i = 0;
 			if (isWord(v, 0, 'async')) {
-				const n = skipblank(v, 5);
-				if (n > 5) {
-					isAsync = true;
-					i = n;
-				}
+				i = skipblank(v, 5);
+				isAsync = 1;
+			} else if (isWord(v, 0, 'get') || isWord(v, 0, 'set')) {
+				i = skipblank(v, 3);
 			}
 			if (isWord(v, i, 'function')) {
 				i = skipblank(v, i + 8);
-				if (v[i] === '*') {
-					isGenerator = true;
-					i = skipblank(v, i + 1);
+				if (isAsync === 1) {
+					isAsync = 2;
 				}
-				if (v[i] !== '(') {
-					l = methodnamelength(v, i);
-					if (!l) return;
-					i = skipblank(v, i + l);
-				}
-				return (isAsync ? 'async ' : '') + 'function' + (isGenerator ? '*' : '') + v.slice(i);
 			}
-			i = skipblank(v, i);
 			if (v[i] === '*') {
 				isGenerator = true;
 				i = skipblank(v, i + 1);
 			}
-			if ((isWord(v, i, 'get') || isWord(v, i, 'set')) && skipblank(v, i + 3) > i + 3) {
-				i = skipblank(v, i + 3);
+			l = methodnamelength(v, i);
+			if (l) {
+				nameStart = i;
+				nameEnd = i + l;
+				i = skipblank(v, nameEnd);
 			}
-			const p = methodparts(v, i);
-			if (!p) return;
-			return (isAsync ? 'async ' : '') + 'function' + (isGenerator ? '*' : '') + p[0] + v.slice(p[1]);
-		},
-		arrowparts = (s, start = 0) => {
-			const afterparams = (i, paramsStart, paramsEnd, parenthesized, isAsync) => {
-				i = skipblank(s, i);
-				if (!s.startsWith('=>', i)) return;
-				const bodyStart = skipblank(s, i + 2);
-				if (bodyStart >= s.length) return;
-				if (s[bodyStart] === '{') {
-					const bodyEnd = sectionlength(s, bodyStart, '}');
-					if (!bodyEnd) return;
-					return {
-						bodyEnd,
-						bodyStart,
-						bodyType: 'block',
-						isAsync,
-						paramsEnd,
-						paramsStart,
-						parenthesized
-					};
-				}
-				return {
-					bodyEnd: s.length,
-					bodyStart,
-					bodyType: 'expression',
-					isAsync,
-					paramsEnd,
-					paramsStart,
-					parenthesized
-				};
-			};
-			let i, l, p;
-			if (isWord(s, start, 'async')) {
-				i = skipblank(s, start + 5);
-				if (i > start + 5 || s[i] === '(') {
-					if (s[i] === '(') {
-						l = sectionlength(s, i, ')');
-						if (l && (p = afterparams(l, i, l, true, true))) return p;
-					} else if (l = wordlength(s, i)) {
-						p = afterparams(i + l, i, i + l, false, true);
-						if (p) return p;
+			if (v.startsWith('=>', i)) {
+				isArrow = true;
+				if (nameEnd) {
+					paramsStart = nameStart;
+					paramsEnd = nameEnd;
+					if (isAsync === 1) {
+						isAsync = 2;
+					}
+				} else {
+					paramsStart = 0;
+					if (isAsync === 1) {
+						paramsEnd = 5;
+						isAsync = 0;
+					} else {
+						paramsEnd = 3;
 					}
 				}
+				i = skipblank(v, i + 2);
 			}
-			if (s[start] === '(') {
-				l = sectionlength(s, start, ')');
-				return l && afterparams(l, start, l, true, false);
-			} else if (l = wordlength(s, start)) {
-				return afterparams(start + l, start, start + l, false, false);
+			if (!paramsEnd && v[i] === '(') {
+				paramsStart = i;
+				paramsEnd = sectionlength(v, i, ')');
+				i = skipblank(v, paramsEnd);
+				if (isAsync === 1 && nameEnd) {
+					isAsync = 2;
+				}
 			}
+			if (v.startsWith('=>', i)) {
+				isArrow = true;
+				i = skipblank(v, i + 2);
+				if (isAsync === 1) {
+					isAsync = 2;
+				}
+			}
+			bodyStart = skipblank(v, i);
+			isBlock = v[bodyStart] === '{';
+			bodyEnd = v.length;
+			while (v[bodyStart] === '(') {
+				const n = sectionlength(v, bodyStart, ')');
+				if (n && skipblank(v, n) === bodyEnd) {
+					bodyStart = skipblank(v, bodyStart + 1);
+					bodyEnd = trimblankend(v, bodyStart, n - 1);
+				} else {
+					break;
+				}
+			}
+			let source = '';
+			if (isAsync === 2) {
+				source += 'async';
+			}
+			if (!isArrow) {
+				if (source) {
+					source += ' ';
+				}
+				source += 'function';
+			}
+			if (isGenerator) {
+				source += '*';
+			}
+			if (v[paramsStart] !== '(') {
+				source += '(';
+			}
+			source += v.slice(paramsStart, paramsEnd);
+			if (v[paramsEnd - 1] !== ')') {
+				source += ')';
+			}
+			if (isArrow) {
+				source += '=>';
+			}
+			if (!isBlock) {
+				source += '{return ';
+			}
+			source += v.slice(bodyStart, bodyEnd);
+			if (!isBlock) {
+				source += '}';
+			}
+			return source;
 		},
-		arrowsource = s => {
-			const p = arrowparts(s);
-			if (!p || p.bodyEnd !== s.length) return;
-			const params = p.parenthesized ? s.slice(p.paramsStart, p.paramsEnd) : '(' + s.slice(p.paramsStart, p.paramsEnd) + ')',
-				body = p.bodyType === 'block' ? s.slice(p.bodyStart, p.bodyEnd) : '{return ' + s.slice(p.bodyStart, p.bodyEnd) + '}';
-			return (p.isAsync ? 'async ' : '') + params + '=>' + body;
-		},
-		arrowlength = (s, start = 0) => {
-			let l, i = start;
+		functionlength = (s, start = 0) => {
+			let l,
+				i = start,
+				fn = false;
 			if (isWord(s, start, 'async')) {
 				i = skipblank(s, start + 5);
 				if (i === start + 5 && s[i] !== '(') return;
 			}
-			if (s[i] !== '(' || !(l = sectionlength(s, i, ')'))) return;
-			i = skipblank(s, l);
-			if (!s.startsWith('=>', i)) return;
-			i = skipblank(s, i + 2);
-			return s[i] === '{' ? sectionlength(s, i, '}') : undefined;
-		},
-		functionlength = (s, start = 0) => {
-			let l = arrowlength(s, start);
-			if (l) return l;
-			let i = start;
-			if (isWord(s, start, 'async')) {
-				i = skipblank(s, start + 5);
-				if (i === start + 5) return;
-			}
-			if (!isWord(s, i, 'function')) return;
-			i = skipblank(s, i + 8);
-			if (s[i] === '*') {
-				i = skipblank(s, i + 1);
-			}
-			if (s[i] !== '(') {
-				l = methodnamelength(s, i);
-				if (!l) return;
-				i = skipblank(s, i + l);
+			if (isWord(s, i, 'function')) {
+				fn = true;
+				i = skipblank(s, i + 8);
+				if (s[i] === '*') {
+					i = skipblank(s, i + 1);
+				}
 			}
 			if (s[i] !== '(' || !(l = sectionlength(s, i, ')'))) return;
 			i = skipblank(s, l);
+			if (!fn) {
+				if (!s.startsWith('=>', i)) return;
+				i = skipblank(s, i + 2);
+			}
 			if (s[i] !== '{' || !(l = sectionlength(s, i, '}'))) return;
 			return l;
 		},
@@ -538,7 +520,7 @@
 					if (typeof s === 'string') {
 						s = 'Symbol.for(' + escapeStr(s) + ')';
 					} else {
-						if ('description' in Symbol.prototype) {
+						if (typeof data.description === 'string') {
 							s = data.description;
 						} else {
 							s = data.toString();
